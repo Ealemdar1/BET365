@@ -5,58 +5,44 @@ import os
 import base64
 from fpdf import FPDF
 
-st.set_page_config(page_title="Gelişmiş Oran Analiz Sistemi (Pinnacle Toleranslı)", layout="wide")
+st.set_page_config(page_title="Gelişmiş Oran Analiz Sistemi (Çoklu Bahisçi)", layout="wide")
 
 # =====================================================
 # GÜVENLİK VE GİRİŞ ŞİFRESİ SİSTEMİ
 # =====================================================
 def check_password():
-    """Kullanıcı doğru şifre girene kadar True dönmez."""
     if "authorized" not in st.session_state:
         st.session_state.authorized = False
-
     if st.session_state.authorized:
         return True
-
     st.markdown("""
     <style>
     .login-box {
-        background-color: #1a202c;
-        padding: 30px;
-        border-radius: 12px;
-        border: 1px solid #2d3748;
-        max-width: 400px;
-        margin: 100px auto;
-        text-align: center;
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        background-color: #1a202c; padding: 30px; border-radius: 12px;
+        border: 1px solid #2d3748; max-width: 400px; margin: 100px auto;
+        text-align: center; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
     }
     </style>
     """, unsafe_allow_html=True)
-
     st.markdown('<div class="login-box">', unsafe_allow_html=True)
     st.subheader("🔒 Sefin Kuponu Portal Girişi")
     st.write("Devam etmek için lütfen giriş şifresini giriniz.")
-
     password_input = st.text_input("Şifre", type="password", key="portal_pass_input")
-
     if st.button("Giriş Yap", use_container_width=True):
         if password_input == "225960":
             st.session_state.authorized = True
             st.rerun()
         else:
             st.error("❌ Hatalı şifre girdiniz!")
-
     st.markdown('</div>', unsafe_allow_html=True)
     return False
 
 
-# Şifre kontrolünü çalıştır
 if check_password():
 
-    st.title("📊 ORAN KUTBU (Pinnacle - Toleranslı Eşleşme)")
+    st.title("📊 ORAN KUTBU (Çoklu Bahisçi - Toleranslı Eşleşme)")
     st.markdown("---")
 
-    # PDF için Türkçe karakter dönüştürücü
     def tr_to_ascii(text):
         replacements = {
             'İ': 'I', 'ı': 'i', 'Ş': 'S', 'ş': 's', 'Ğ': 'G', 'ğ': 'g',
@@ -68,7 +54,6 @@ if check_password():
         return text
 
 
-    # MODERN KART TASARIMI
     def generate_modern_card(title, count, total, flames):
         yuzde = (count / total) * 100 if total > 0 else 0
         flame_display = flames if flames else "-"
@@ -89,28 +74,37 @@ if check_password():
         return html
 
 
-    # ÖZET DASHBOARD KARTLARI
-    def generate_summary_dashboard(total_matches, tolerans):
-        if tolerans == 0:
-            baslik = "📋 Birebir Tam Eşleşen Maç Sayısı"
-            aciklama = "Seçilen açılış oranları ile birebir aynı olan maç sayısı"
-        else:
-            baslik = f"📋 ±{tolerans} Toleransında Eşleşen Maç Sayısı"
-            aciklama = f"Seçilen açılış oranlarına ±{tolerans} yakınlıkta olan maç sayısı"
-
+    def generate_summary_dashboard(total_matches, tolerans, mod_metni):
         html = (
             f'<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 25px;">'
             f'<div style="background-color: #1a202c; border: 1px solid #3b82f6; border-radius: 12px; padding: 20px; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.15);">'
-            f'<div style="color: #93c5fd; font-weight: 600; font-size: 15px; margin-bottom: 8px;">{baslik}</div>'
+            f'<div style="color: #93c5fd; font-weight: 600; font-size: 15px; margin-bottom: 8px;">📋 Eşleşen Maç Sayısı ({mod_metni})</div>'
             f'<div style="font-size: 36px; color: #3b82f6; font-weight: bold;">{total_matches} Adet</div>'
-            f'<div style="color: #64748b; font-size: 12px; margin-top: 5px;">{aciklama}</div>'
+            f'<div style="color: #64748b; font-size: 12px; margin-top: 5px;">Tolerans: ±{tolerans}</div>'
             f'</div>'
             f'</div>'
         )
         return html
 
 
-    # Tüm 2010-2027 Excel Verileri ve Yeni Eklenen Liglerin excel dosyası
+    # =====================================================
+    # BAHİSÇİ SÜTUN EŞLEŞTİRMELERİ
+    # =====================================================
+    # NOT: Bu sözlük Excel dosyalarındaki oran sütunlarına göre tanımlanmıştır.
+    # Yeni bir bahisçi eklemek istersen buraya ekleyebilirsin.
+    BAHISCILER = {
+        "Pinnacle":        {"H": "PSH",    "D": "PSD",    "A": "PSA"},
+        "Bet365":          {"H": "B365H",  "D": "B365D",  "A": "B365A"},
+        "Bwin":            {"H": "BWH",    "D": "BWD",    "A": "BWA"},
+        "Interwetten":     {"H": "IWH",    "D": "IWD",    "A": "IWA"},
+        "William Hill":    {"H": "WHH",    "D": "WHD",    "A": "WHA"},
+        "VC Bet":          {"H": "VCH",    "D": "VCD",    "A": "VCA"},
+        "Betvictor":       {"H": "BVH",    "D": "BVD",    "A": "BVA"},
+        "Ortalama (Betbrain)": {"H": "BbAvH", "D": "BbAvD", "A": "BbAvA"},
+        "Maksimum (Betbrain)": {"H": "BbMxH", "D": "BbMxD", "A": "BbMxA"},
+    }
+
+
     uploaded_files = [
         "new_leagues_data.xlsx",
         "all-euro-data-2010-2011.xlsx", "all-euro-data-2011-2012.xlsx",
@@ -124,48 +118,27 @@ if check_password():
         "all-euro-data-2026-2027.xlsx"
     ]
 
-    # Tüm Avrupa ve Yeni Eklenen Dünya Ligleri Açıklama Sözlüğü
     lig_aciklamalari = {
-        "D1": "D1 (Almanya Bundesliga)",
-        "D2": "D2 (Almanya Bundesliga 2)",
-        "E0": "E0 (İngiltere Premier Lig)",
-        "E1": "E1 (İngiltere Championship)",
-        "E2": "E2 (İngiltere League One)",
-        "E3": "E3 (İngiltere League Two)",
-        "SP1": "SP1 (İspanya La Liga)",
-        "SP2": "SP2 (İspanya Segunda Division)",
-        "I1": "I1 (İtalya Serie A)",
-        "I2": "I2 (İtalya Serie B)",
-        "F1": "F1 (Fransa Ligue 1)",
-        "F2": "F2 (Fransa Ligue 2)",
-        "N1": "N1 (Hollanda Eredivisie)",
-        "B1": "B1 (Belçika Pro League)",
-        "P1": "P1 (Portekiz Liga NOS)",
-        "T1": "T1 (Türkiye Süper Ligi)",
-        "SC0": "SC0 (İskoçya Premiership)",
-        "SC1": "SC1 (İskoçya Championship)",
-        "SC2": "SC2 (İskoçya League One)",
-        "SC3": "SC3 (İskoçya League Two)",
-        "G1": "G1 (Yunanistan Super League)",
-        "EC": "EC (Avrupa Kupaları)",
+        "D1": "D1 (Almanya Bundesliga)", "D2": "D2 (Almanya Bundesliga 2)",
+        "E0": "E0 (İngiltere Premier Lig)", "E1": "E1 (İngiltere Championship)",
+        "E2": "E2 (İngiltere League One)", "E3": "E3 (İngiltere League Two)",
+        "SP1": "SP1 (İspanya La Liga)", "SP2": "SP2 (İspanya Segunda Division)",
+        "I1": "I1 (İtalya Serie A)", "I2": "I2 (İtalya Serie B)",
+        "F1": "F1 (Fransa Ligue 1)", "F2": "F2 (Fransa Ligue 2)",
+        "N1": "N1 (Hollanda Eredivisie)", "B1": "B1 (Belçika Pro League)",
+        "P1": "P1 (Portekiz Liga NOS)", "T1": "T1 (Türkiye Süper Ligi)",
+        "SC0": "SC0 (İskoçya Premiership)", "SC1": "SC1 (İskoçya Championship)",
+        "SC2": "SC2 (İskoçya League One)", "SC3": "SC3 (İskoçya League Two)",
+        "G1": "G1 (Yunanistan Super League)", "EC": "EC (Avrupa Kupaları)",
         "CL": "CL (Şampiyonlar Ligi)",
-        # Yeni Eklenen Ligler
-        "ARG": "ARG (Arjantin Liga Profesional)",
-        "AUT": "AUT (Avusturya Bundesliga)",
-        "BRA": "BRA (Brezilya Serie A)",
-        "CHN": "CHN (Çin Süper Ligi)",
-        "DNK": "DNK (Danimarka Superliga)",
-        "FIN": "FIN (Finlandiya Veikkausliiga)",
-        "IRL": "IRL (İrlanda Premier Division)",
-        "JPN": "JPN (Japonya J1 League)",
-        "MEX": "MEX (Meksika Liga MX)",
-        "NOR": "NOR (Norveç Eliteserien)",
-        "POL": "POL (Polonya Ekstraklasa)",
-        "ROU": "ROU (Romanya Liga I)",
-        "RUS": "RUS (Rusya Premier Lig)",
-        "SWE": "SWE (İsveç Allsvenskan)",
-        "SWZ": "SWZ (İsviçre Süper Lig)",
-        "USA": "USA (Amerika MLS)"
+        "ARG": "ARG (Arjantin Liga Profesional)", "AUT": "AUT (Avusturya Bundesliga)",
+        "BRA": "BRA (Brezilya Serie A)", "CHN": "CHN (Çin Süper Ligi)",
+        "DNK": "DNK (Danimarka Superliga)", "FIN": "FIN (Finlandiya Veikkausliiga)",
+        "IRL": "IRL (İrlanda Premier Division)", "JPN": "JPN (Japonya J1 League)",
+        "MEX": "MEX (Meksika Liga MX)", "NOR": "NOR (Norveç Eliteserien)",
+        "POL": "POL (Polonya Ekstraklasa)", "ROU": "ROU (Romanya Liga I)",
+        "RUS": "RUS (Rusya Premier Lig)", "SWE": "SWE (İsveç Allsvenskan)",
+        "SWZ": "SWZ (İsviçre Süper Lig)", "USA": "USA (Amerika MLS)"
     }
 
 
@@ -212,42 +185,79 @@ if check_password():
 
 
     # =====================================================
-    # MOBİL UYUMLU KOMPAKT YAN YANA ORAN GİRİŞ ALANI (Pinnacle)
+    # ANALİZ MODU SEÇİMİ
     # =====================================================
-    st.markdown("### 🎯 Pinnacle Açılış Oranlarını Girin (Tolerans dahilinde eşleşmeler filtrelenir)")
+    st.markdown("### 🎯 Analiz Modu")
+
+    mod = st.radio(
+        "Hangi modda arama yapmak istiyorsun?",
+        options=["Tek Bahisçi", "Herhangi Biri (Tüm Bahisçiler)"],
+        horizontal=True,
+        help=(
+            "Tek Bahisçi: Sadece seçtiğin bahisçinin oranları taranır.\n"
+            "Herhangi Biri: Tüm bahisçilerin oranları taranır; bir tanesi bile toleransa uyuyorsa maç listeye girer."
+        )
+    )
+
+    # Kullanılabilir bahisçileri bul (sadece veride var olan sütunlar)
+    mevcut_bahisciler = []
+    for isim, sutunlar in BAHISCILER.items():
+        if all(s in df_all_leagues.columns for s in sutunlar.values()):
+            # En az bir satırda oran var mı?
+            if df_all_leagues[list(sutunlar.values())].notna().any().any():
+                mevcut_bahisciler.append(isim)
+
+    if mod == "Tek Bahisçi":
+        secilen_bahisci = st.selectbox(
+            "Bahisçi Seç",
+            options=mevcut_bahisciler,
+            index=mevcut_bahisciler.index("Pinnacle") if "Pinnacle" in mevcut_bahisciler else 0,
+            help="Sadece bu bahisçinin oranları taranacak."
+        )
+        aranacak_bahisciler = [secilen_bahisci]
+    else:
+        aranacak_bahisciler = st.multiselect(
+            "Taranacak Bahisçiler (boş bırakırsan tümü taranır)",
+            options=mevcut_bahisciler,
+            default=mevcut_bahisciler,
+            help="Tüm bahisçilerin oranları taranır, bir tanesi bile toleransa uyuyorsa maç listeye girer."
+        )
+        if not aranacak_bahisciler:
+            aranacak_bahisciler = mevcut_bahisciler
+        secilen_bahisci = "Herhangi Biri"
+
+    # =====================================================
+    # ORAN GİRİŞ ALANLARI
+    # =====================================================
+    st.markdown("### 🎯 Açılış Oranlarını Girin")
+    st.caption(f"Seçili bahisçi(ler): **{', '.join(aranacak_bahisciler)}**")
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        ps_h = st.number_input("Ev Sahibi Açılış (PSH)", min_value=1.0, max_value=20.0, value=2.60, step=0.01)
+        ps_h = st.number_input("Ev Sahibi Oranı", min_value=1.0, max_value=20.0, value=2.60, step=0.01)
     with col2:
-        ps_d = st.number_input("Beraberlik Açılış (PSD)", min_value=1.0, max_value=20.0, value=3.75, step=0.01)
+        ps_d = st.number_input("Beraberlik Oranı", min_value=1.0, max_value=20.0, value=3.75, step=0.01)
     with col3:
-        ps_a = st.number_input("Deplasman Açılış (PSA)", min_value=1.0, max_value=20.0, value=2.37, step=0.01)
+        ps_a = st.number_input("Deplasman Oranı", min_value=1.0, max_value=20.0, value=2.37, step=0.01)
 
-    # =====================================================
     # TOLERANS SLIDER
-    # =====================================================
     st.markdown("### ⚙️ Eşleşme Toleransı")
     tolerans = st.slider(
         "Oran Toleransı (±)",
-        min_value=0.0,
-        max_value=0.10,
-        value=0.05,
-        step=0.01,
-        help="0 = Birebir tam eşleşme, 0.05 = ±0.05 toleranslı eşleşme (varsayılan)"
+        min_value=0.0, max_value=0.10, value=0.05, step=0.01,
+        help="0 = Birebir tam eşleşme, 0.05 = ±0.05 toleranslı eşleşme"
     )
 
     if tolerans == 0:
-        st.caption("🔒 Şu an **birebir tam eşleşme** modundasınız (tolerans yok).")
+        st.caption("🔒 Şu an **birebir tam eşleşme** modundasınız.")
     else:
-        st.caption(f"📏 Şu an **±{tolerans}** toleranslı eşleşme modundasınız. Yani oranlarınız şu aralıklarda aranacak: "
-                   f"PSH [{ps_h - tolerans:.2f} – {ps_h + tolerans:.2f}], "
-                   f"PSD [{ps_d - tolerans:.2f} – {ps_d + tolerans:.2f}], "
-                   f"PSA [{ps_a - tolerans:.2f} – {ps_a + tolerans:.2f}]")
+        st.caption(f"📏 **±{tolerans}** tolerans aktif. Aralıklar: "
+                   f"Ev [{ps_h - tolerans:.2f} – {ps_h + tolerans:.2f}], "
+                   f"Ber [{ps_d - tolerans:.2f} – {ps_d + tolerans:.2f}], "
+                   f"Dep [{ps_a - tolerans:.2f} – {ps_a + tolerans:.2f}]")
 
-    # Lig ve Limit Filtreleri (Sol Panel)
+    # Lig Filtresi
     st.sidebar.header("🌍 Filtreler")
-
     benzersiz_ligler = sorted(df_all_leagues['Source_Sheet'].dropna().unique().tolist()) if not df_all_leagues.empty else []
     secilen_ligler = st.sidebar.multiselect("Lig Filtrele", benzersiz_ligler)
 
@@ -260,73 +270,125 @@ if check_password():
         if secilen_ligler:
             df_temp = df_temp[df_temp['Source_Sheet'].isin(secilen_ligler)]
 
-        # Pinnacle Oran Sütunları
-        oran_sutunlari = ['PSH', 'PSD', 'PSA']
-        for col in oran_sutunlari:
-            df_temp[col] = pd.to_numeric(df_temp[col], errors='coerce')
+        # Tüm aday satırları bul
+        eslesen_satirlar = []
 
-        df_temp = df_temp.dropna(subset=oran_sutunlari)
+        for bahisci in aranacak_bahisciler:
+            if bahisci not in BAHISCILER:
+                continue
+            h_col = BAHISCILER[bahisci]["H"]
+            d_col = BAHISCILER[bahisci]["D"]
+            a_col = BAHISCILER[bahisci]["A"]
 
-        if df_temp.empty:
-            st.warning("Seçilen kriterlere uygun Pinnacle oran verisi bulunan maç kalmadı.")
-        else:
-            # ==========================================
-            # TOLERANSLI EŞLEŞME FİLTRESİ
-            # ==========================================
-            sonuc_df = df_temp[
-                (df_temp['PSH'].between(ps_h - tolerans, ps_h + tolerans)) &
-                (df_temp['PSD'].between(ps_d - tolerans, ps_d + tolerans)) &
-                (df_temp['PSA'].between(ps_a - tolerans, ps_a + tolerans))
-            ].copy()
+            if not all(c in df_temp.columns for c in [h_col, d_col, a_col]):
+                continue
 
-            if sonuc_df.empty:
-                if tolerans == 0:
-                    st.warning("Seçilen açılış oranları ile birebir tam eşleşen hiçbir maç bulunamadı.")
-                else:
-                    st.warning(f"±{tolerans} toleransında eşleşen hiçbir maç bulunamadı.")
-                st.session_state.analiz_yapildi = False
+            # Oranları sayısala çevir
+            tmp = df_temp.copy()
+            for c in [h_col, d_col, a_col]:
+                tmp[c] = pd.to_numeric(tmp[c], errors='coerce')
+            tmp = tmp.dropna(subset=[h_col, d_col, a_col])
+
+            if tmp.empty:
+                continue
+
+            # Toleranslı eşleşme
+            mask = (
+                tmp[h_col].between(ps_h - tolerans, ps_h + tolerans) &
+                tmp[d_col].between(ps_d - tolerans, ps_d + tolerans) &
+                tmp[a_col].between(ps_a - tolerans, ps_a + tolerans)
+            )
+            matched = tmp[mask].copy()
+            if matched.empty:
+                continue
+
+            matched['Eslesen_Bahisci'] = bahisci
+            matched['B_H'] = matched[h_col]
+            matched['B_D'] = matched[d_col]
+            matched['B_A'] = matched[a_col]
+            # Fark sütunları
+            matched['Fark_H'] = (matched[h_col] - ps_h).round(2)
+            matched['Fark_D'] = (matched[d_col] - ps_d).round(2)
+            matched['Fark_A'] = (matched[a_col] - ps_a).round(2)
+
+            # Aynı satır (maç) farklı bahisçilerde de çıkabilir → sonra birleştireceğiz
+            eslesen_satirlar.append(matched)
+
+        if not eslesen_satirlar:
+            if tolerans == 0:
+                st.warning("Seçilen kriterlerle birebir tam eşleşen hiçbir maç bulunamadı.")
             else:
-                for col in ['HTHG', 'HTAG', 'FTHG', 'FTAG']:
-                    if col in sonuc_df.columns:
-                        sonuc_df[col] = pd.to_numeric(sonuc_df[col], errors='coerce').fillna(0).astype(int)
+                st.warning(f"±{tolerans} toleransında eşleşen hiçbir maç bulunamadı.")
+            st.session_state.analiz_yapildi = False
+        else:
+            birlesik = pd.concat(eslesen_satirlar, ignore_index=True)
 
-                sonuc_df['İY'] = sonuc_df['HTHG'].astype(str) + '-' + sonuc_df['HTAG'].astype(str)
-                sonuc_df['MS'] = sonuc_df['FTHG'].astype(str) + '-' + sonuc_df['FTAG'].astype(str)
+            # Aynı maç birden fazla bahisçide eşleşmişse: grupla, bahisçi isimlerini birleştir
+            # Maç tanımlayıcı: Date + HomeTeam + AwayTeam
+            grup_kolonlari = [c for c in ['Date', 'HomeTeam', 'AwayTeam', 'Source_Sheet'] if c in birlesik.columns]
 
-                # Tolerans > 0 ise fark sütunları ekle
-                if tolerans > 0:
-                    sonuc_df['PSH_Fark'] = (sonuc_df['PSH'] - ps_h).round(2)
-                    sonuc_df['PSD_Fark'] = (sonuc_df['PSD'] - ps_d).round(2)
-                    sonuc_df['PSA_Fark'] = (sonuc_df['PSA'] - ps_a).round(2)
-                    gosterilecek_kolonlar = ['Date', 'Source_Sheet', 'HomeTeam', 'AwayTeam',
-                                             'PSH', 'PSD', 'PSA',
-                                             'PSH_Fark', 'PSD_Fark', 'PSA_Fark',
-                                             'İY', 'MS']
+            if grup_kolonlari:
+                birlesik['Eslesen_Bahisci_Str'] = birlesik['Eslesen_Bahisci']
+                # Her maç için hangi bahisçiler eşleşti
+                agg_dict = {
+                    'Eslesen_Bahisci_Str': lambda x: ', '.join(sorted(set(x))),
+                }
+                # Sayısal sütunlar için ortalama veya ilk değer alalım
+                for c in ['B_H', 'B_D', 'B_A', 'Fark_H', 'Fark_D', 'Fark_A']:
+                    if c in birlesik.columns:
+                        agg_dict[c] = 'first'
+                # HTHG, HTAG, FTHG, FTAG varsa
+                for c in ['HTHG', 'HTAG', 'FTHG', 'FTAG']:
+                    if c in birlesik.columns:
+                        agg_dict[c] = 'first'
+
+                ozet = birlesik.groupby(grup_kolonlari, as_index=False).agg(agg_dict)
+                ozet = ozet.rename(columns={'Eslesen_Bahisci_Str': 'Eslesen_Bahisci'})
+            else:
+                ozet = birlesik.copy()
+
+            # İY / MS skorları
+            for col in ['HTHG', 'HTAG', 'FTHG', 'FTAG']:
+                if col in ozet.columns:
+                    ozet[col] = pd.to_numeric(ozet[col], errors='coerce').fillna(0).astype(int)
                 else:
-                    gosterilecek_kolonlar = ['Date', 'Source_Sheet', 'HomeTeam', 'AwayTeam',
-                                             'PSH', 'PSD', 'PSA', 'İY', 'MS']
+                    ozet[col] = 0
 
-                final_tablo = sonuc_df[[c for c in gosterilecek_kolonlar if c in sonuc_df.columns]]
+            ozet['İY'] = ozet['HTHG'].astype(str) + '-' + ozet['HTAG'].astype(str)
+            ozet['MS'] = ozet['FTHG'].astype(str) + '-' + ozet['FTAG'].astype(str)
 
-                st.session_state.final_tablo = final_tablo
-                st.session_state.analiz_yapildi = True
-                st.session_state.kullanilan_tolerans = tolerans
-                st.session_state.kullanilan_psh = ps_h
-                st.session_state.kullanilan_psd = ps_d
-                st.session_state.kullanilan_psa = ps_a
+            gosterilecek_kolonlar = ['Date', 'Source_Sheet', 'HomeTeam', 'AwayTeam',
+                                     'Eslesen_Bahisci',
+                                     'B_H', 'B_D', 'B_A',
+                                     'Fark_H', 'Fark_D', 'Fark_A',
+                                     'İY', 'MS']
+            final_tablo = ozet[[c for c in gosterilecek_kolonlar if c in ozet.columns]].copy()
+            # Sütun isimlerini güzelleştir
+            final_tablo = final_tablo.rename(columns={
+                'B_H': 'Oran_H', 'B_D': 'Oran_D', 'B_A': 'Oran_A',
+                'Fark_H': 'Fark_H', 'Fark_D': 'Fark_D', 'Fark_A': 'Fark_A'
+            })
+
+            st.session_state.final_tablo = final_tablo
+            st.session_state.analiz_yapildi = True
+            st.session_state.kullanilan_tolerans = tolerans
+            st.session_state.kullanilan_psh = ps_h
+            st.session_state.kullanilan_psd = ps_d
+            st.session_state.kullanilan_psa = ps_a
+            st.session_state.kullanilan_mod = mod
+            st.session_state.kullanilan_bahisciler = aranacak_bahisciler
 
     if st.session_state.analiz_yapildi:
         final_tablo = st.session_state.final_tablo
         tolerans_aktif = st.session_state.get('kullanilan_tolerans', tolerans)
+        mod_aktif = st.session_state.get('kullanilan_mod', mod)
+        bahisciler_aktif = st.session_state.get('kullanilan_bahisciler', aranacak_bahisciler)
 
-        # --- ÖZET DASHBOARD KARTLARI ---
-        st.markdown(generate_summary_dashboard(len(final_tablo), tolerans_aktif), unsafe_allow_html=True)
+        mod_metni = mod_aktif if mod_aktif == "Herhangi Biri (Tüm Bahisçiler)" else f"Tek Bahisçi: {bahisciler_aktif[0]}"
 
-        if tolerans_aktif == 0:
-            st.subheader(f"🎯 Birebir Eşleşen {len(final_tablo)} Maç")
-        else:
-            st.subheader(f"🎯 ±{tolerans_aktif} Toleransında Eşleşen {len(final_tablo)} Maç")
+        st.markdown(generate_summary_dashboard(len(final_tablo), tolerans_aktif, mod_metni), unsafe_allow_html=True)
 
+        st.subheader(f"🎯 {len(final_tablo)} Maç Eşleşti")
         st.dataframe(final_tablo, use_container_width=True)
 
         st.markdown("### 📊 Skor ve İstatistiki Dağılımlar")
@@ -400,7 +462,7 @@ if check_password():
             # İY ÖZEL BAHİS
             st.markdown("---")
             st.markdown("### ⚽ İlk Yarı (İY) Özel Bahis Dağılımı")
-            st.caption(f"İlk yarı skorlarına göre hesaplanmıştır. (Alevler: 10-14 maç=1, 15-16 maç=2, 17+ maç=3)")
+            st.caption(f"İlk yarı skorlarına göre hesaplanmıştır.")
 
             temp_gol['IY_Toplam_Gol'] = temp_gol['İY'].apply(lambda s: sum(int(x.strip()) for x in s.split('-')) if isinstance(s, str) else 0)
             temp_gol['IY_KG_Var'] = temp_gol['İY'].apply(lambda s: all(int(x) > 0 for x in s.split('-')) if isinstance(s, str) and '-' in s else False)
@@ -423,7 +485,6 @@ if check_password():
             # İY SONUÇ DAĞILIMI
             st.markdown("---")
             st.markdown("### 🎯 İlk Yarı (İY) Sonuç Dağılımı (1 - X - 2)")
-            st.caption(f"İlk yarı skorlarına göre hesaplanmıştır. (Alevler: 10-14 maç=1, 15-16 maç=2, 17+ maç=3)")
 
             html_iy_sonuc_cards = '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 15px; margin-top: 15px;">'
             for baslik, adet in [
@@ -442,7 +503,6 @@ if check_password():
             # İY/MS ÖZEL SONUÇ DAĞILIMI
             st.markdown("---")
             st.markdown("### 🔄 İY/MS Özel Sonuç Dağılımı")
-            st.caption(f"Ters (2/1, 1/2): 2 maç=1, 3 maç=2, 4+ maç=3 Alev | Dönüşler (X/X, 1/X, 2/X): 7+ maç Alevli (7-9=1, 10-12=2, 13+=3)")
 
             temp_gol['IY_MS'] = temp_gol['IY_Taraf'] + '/' + temp_gol['MS'].apply(taraf_belirle)
 
@@ -458,19 +518,13 @@ if check_password():
             for baslik, adet, tip in kart_verileri:
                 alev_sayisi = 0
                 if tip == 'ters':
-                    if adet >= 4:
-                        alev_sayisi = 3
-                    elif adet == 3:
-                        alev_sayisi = 2
-                    elif adet == 2:
-                        alev_sayisi = 1
+                    if adet >= 4: alev_sayisi = 3
+                    elif adet == 3: alev_sayisi = 2
+                    elif adet == 2: alev_sayisi = 1
                 elif tip == 'standart':
-                    if adet >= 13:
-                        alev_sayisi = 3
-                    elif adet >= 10:
-                        alev_sayisi = 2
-                    elif adet >= 7:
-                        alev_sayisi = 1
+                    if adet >= 13: alev_sayisi = 3
+                    elif adet >= 10: alev_sayisi = 2
+                    elif adet >= 7: alev_sayisi = 1
 
                 alev_gosterim = "".join(["🔥" for _ in range(alev_sayisi)])
                 html_ters_cards += generate_modern_card(baslik, adet, toplam_mac, alev_gosterim)
@@ -481,12 +535,12 @@ if check_password():
             st.markdown(html_ters_cards, unsafe_allow_html=True)
 
             # ==========================================
-            # PDF TERCİHLER VE BAŞLIK AYARLARI
+            # PDF RAPORU
             # ==========================================
             st.markdown("---")
             st.subheader("📄 Analiz Sonucu Raporu")
 
-            mac_adi_girisi = st.text_input("⚽ Maç Adı (PDF Başlığı ve Dosya Adı Olacaktır)", value="Fenerbahce - Galatasaray", key="mac_adi_input")
+            mac_adi_girisi = st.text_input("⚽ Maç Adı (PDF Başlığı ve Dosya Adı)", value="Fenerbahce - Galatasaray", key="mac_adi_input")
             temiz_dosya_adi = "".join([c for c in mac_adi_girisi if c.isalpha() or c.isdigit() or c in ' -_']).strip().replace(' ', '_').lower()
             if not temiz_dosya_adi:
                 temiz_dosya_adi = "sefin_kuponu_rapor"
@@ -503,7 +557,6 @@ if check_password():
             color_text_dark = (15, 23, 42)
             color_text_muted = (100, 116, 139)
 
-            # 1. Şık Rapor Başlığı (Header Banner)
             pdf.set_fill_color(*color_header_bg)
             pdf.rect(15, 15, 180, 24, 'F')
             pdf.set_text_color(255, 255, 255)
@@ -514,28 +567,31 @@ if check_password():
             pdf.set_x(20)
             pdf.cell(170, 4, txt=tr_to_ascii("Gelismis Oran Analiz Sistemi Raporu"), ln=True, align='L')
 
-            # Bilgi Paneli
             pdf.set_xy(15, 43)
             pdf.set_fill_color(*color_sec_bg)
-            pdf.cell(180, 15, txt="", ln=False, fill=True)
+            pdf.cell(180, 20, txt="", ln=False, fill=True)
             pdf.set_text_color(*color_text_dark)
             pdf.set_font("Helvetica", 'B', 10)
             pdf.set_xy(20, 45)
             pdf.cell(85, 5, txt=tr_to_ascii(f"Analiz Edilen Mac Sayisi: {len(final_tablo)} Adet"), ln=False)
-            pdf.cell(85, 5, txt=tr_to_ascii(f"Olusturma Tarihi: {pd.Timestamp.now().strftime('%d.%m.%Y %H:%M')}"), ln=True)
+            pdf.cell(85, 5, txt=tr_to_ascii(f"Tarih: {pd.Timestamp.now().strftime('%d.%m.%Y %H:%M')}"), ln=True)
             pdf.set_xy(20, 50)
             pdf.set_font("Helvetica", '', 9)
             pdf.set_text_color(*color_text_muted)
             tolerans_metni = "Birebir" if tolerans_aktif == 0 else f"±{tolerans_aktif}"
             pdf.cell(170, 4, txt=tr_to_ascii(
-                f"Giris Oranlari (Pinnacle): Ev: {st.session_state.get('kullanilan_psh', ps_h)} | "
+                f"Giris Oranlari: Ev: {st.session_state.get('kullanilan_psh', ps_h)} | "
                 f"Ber: {st.session_state.get('kullanilan_psd', ps_d)} | "
                 f"Dep: {st.session_state.get('kullanilan_psa', ps_a)} | "
                 f"Tolerans: {tolerans_metni}"
             ), ln=True)
-            pdf.ln(10)
+            pdf.set_xy(20, 55)
+            pdf.cell(170, 4, txt=tr_to_ascii(
+                f"Mod: {mod_aktif} | Bahisciler: {', '.join(bahisciler_aktif)}"
+            ), ln=True)
+            pdf.ln(12)
 
-            # --- IDEAL TERCİHLER BÖLÜMÜ ---
+            # IDEAL TERCİHLER
             pdf.set_text_color(*color_text_dark)
             pdf.set_font("Helvetica", 'B', 12)
             pdf.cell(180, 8, txt=tr_to_ascii("1. IDEAL TERCIHLER (Banko Adaylari)"), ln=True)
@@ -550,34 +606,28 @@ if check_password():
                     alev_sayisi = t.count('🔥')
                     temiz_metin = t.replace('🔥', '').strip()
                     current_y = pdf.get_y()
-
                     pdf.set_fill_color(*color_ideal_left)
                     pdf.rect(15, current_y, 3, 10, 'F')
-
                     pdf.set_fill_color(*color_sec_bg)
                     pdf.rect(18, current_y, 177, 10, 'F')
-
                     pdf.set_xy(23, current_y + 1)
                     pdf.set_text_color(*color_text_dark)
                     pdf.set_font("Helvetica", 'B', 10)
                     pdf.cell(120, 8, txt=tr_to_ascii(f" {temiz_metin}"), ln=False)
-
                     if alev_sayisi > 0:
                         pdf.set_text_color(220, 38, 38)
                         pdf.set_font("Helvetica", 'B', 9)
                         pdf.cell(50, 8, txt=tr_to_ascii(f" {alev_sayisi} ALEVLI POTANSIYEL"), ln=True, align='R')
                     else:
                         pdf.ln(8)
-
                     pdf.set_y(current_y + 12)
             else:
                 pdf.set_font("Helvetica", 'I', 10)
                 pdf.set_text_color(*color_text_muted)
                 pdf.cell(0, 8, txt=tr_to_ascii(" Bu analiz kriterlerine uyan aktif ideal tahmin bulunmuyor."), ln=True)
-
             pdf.ln(6)
 
-            # --- SÜRPRİZ TERCİHLER BÖLÜMÜ ---
+            # SÜRPRİZ TERCİHLER
             pdf.set_text_color(*color_text_dark)
             pdf.set_font("Helvetica", 'B', 12)
             pdf.cell(180, 8, txt=tr_to_ascii("2. SURPRIZ TERCIHLER (Degerli & Yuksek Oranlar)"), ln=True)
@@ -592,38 +642,31 @@ if check_password():
                     alev_sayisi = t.count('🔥')
                     temiz_metin = t.replace('🔥', '').strip()
                     current_y = pdf.get_y()
-
                     pdf.set_fill_color(*color_surp_left)
                     pdf.rect(15, current_y, 3, 10, 'F')
-
                     pdf.set_fill_color(*color_sec_bg)
                     pdf.rect(18, current_y, 177, 10, 'F')
-
                     pdf.set_xy(23, current_y + 1)
                     pdf.set_text_color(*color_text_dark)
                     pdf.set_font("Helvetica", 'B', 10)
                     pdf.cell(120, 8, txt=tr_to_ascii(f" {temiz_metin}"), ln=False)
-
                     if alev_sayisi > 0:
                         pdf.set_text_color(220, 38, 38)
                         pdf.set_font("Helvetica", 'B', 9)
                         pdf.cell(50, 8, txt=tr_to_ascii(f" {alev_sayisi} ALEVLI SURPRIZ"), ln=True, align='R')
                     else:
                         pdf.ln(8)
-
                     pdf.set_y(current_y + 12)
             else:
                 pdf.set_font("Helvetica", 'I', 10)
                 pdf.set_text_color(*color_text_muted)
                 pdf.cell(0, 8, txt=tr_to_ascii(" Bu analiz kriterlerine uyan aktif surpriz tahmin bulunmuyor."), ln=True)
-
             pdf.ln(6)
 
-            # --- İSTATİSTİKSEL DAĞILIM TABLOLARI BÖLÜMÜ ---
+            # SKOR DAGILIMLARI
             pdf.set_text_color(*color_text_dark)
             pdf.set_font("Helvetica", 'B', 12)
-            pdf.cell(180, 8, txt=tr_to_ascii("3. SKOR VE ISTATISTIKSEL DAGILIMLAR (Ozet Tablolar)"), ln=True)
-
+            pdf.cell(180, 8, txt=tr_to_ascii("3. SKOR VE ISTATISTIKSEL DAGILIMLAR"), ln=True)
             pdf.set_draw_color(100, 116, 139)
             pdf.set_line_width(0.8)
             pdf.line(15, pdf.get_y(), 195, pdf.get_y())
@@ -634,13 +677,11 @@ if check_password():
                 pdf_obj.set_font("Helvetica", 'B', 9)
                 pdf_obj.set_fill_color(200, 220, 255)
                 pdf_obj.cell(55, 6, txt=tr_to_ascii(title), ln=True, align='L', fill=True)
-
                 pdf_obj.set_xy(start_x, start_y + 6)
                 pdf_obj.set_fill_color(240, 240, 240)
                 pdf_obj.set_font("Helvetica", 'B', 8)
                 pdf_obj.cell(35, 5, txt=tr_to_ascii(col_names[0]), border=1, ln=False, fill=True)
                 pdf_obj.cell(20, 5, txt=tr_to_ascii(col_names[1]), border=1, ln=True, fill=True)
-
                 current_row_y = start_y + 11
                 pdf_obj.set_font("Helvetica", '', 8)
                 for index, row in dataframe.head(15).iterrows():
@@ -671,19 +712,7 @@ if check_password():
 
                 pdf_link_html = f'''
                 <a href="data:application/pdf;base64,{b64_pdf}" download="{temiz_dosya_adi}.pdf" style="text-decoration:none;">
-                    <div style="
-                        background-color: #ef4444;
-                        color: white;
-                        padding: 12px 20px;
-                        text-align: center;
-                        border-radius: 8px;
-                        font-weight: bold;
-                        font-size: 16px;
-                        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                        cursor: pointer;
-                        margin-top: 10px;
-                        display: block;
-                    ">
+                    <div style="background-color: #ef4444; color: white; padding: 12px 20px; text-align: center; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); cursor: pointer; margin-top: 10px; display: block;">
                         🚀 Mobil Doğrudan İndir (Telefon)
                     </div>
                 </a>
