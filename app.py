@@ -106,7 +106,19 @@ if check_password():
         )
         return html
 
+    # Tüm 2010-2027 Excel Verileri ve Yeni Eklenen Liglerin excel dosyası
     uploaded_files = [
+        "new_leagues_data.xlsx",
+        "all-euro-data-2010-2011.xlsx",
+        "all-euro-data-2011-2012.xlsx",
+        "all-euro-data-2012-2013.xlsx",
+        "all-euro-data-2013-2014.xlsx",
+        "all-euro-data-2014-2015.xlsx",
+        "all-euro-data-2015-2016.xlsx",
+        "all-euro-data-2016-2017.xlsx",
+        "all-euro-data-2017-2018.xlsx",
+        "all-euro-data-2018-2019.xlsx",
+        "all-euro-data-2019-2020.xlsx",
         "all-euro-data-2020-2021.xlsx",
         "all-euro-data-2021-2022.xlsx",
         "all-euro-data-2022-2023.xlsx",
@@ -116,6 +128,7 @@ if check_password():
         "all-euro-data-2026-2027.xlsx"
     ]
 
+    # Tüm Avrupa ve Yeni Eklenen Dünya Ligleri Açıklama Sözlüğü
     lig_aciklamalari = {
         "D1": "D1 (Almanya Bundesliga)", "D2": "D2 (Almanya Bundesliga 2)",
         "E0": "E0 (İngiltere Premier Lig)", "E1": "E1 (İngiltere Championship)",
@@ -128,7 +141,24 @@ if check_password():
         "SC0": "SC0 (İskoçya Premiership)", "SC1": "SC1 (İskoçya Championship)",
         "SC2": "SC2 (İskoçya League One)", "SC3": "SC3 (İskoçya League Two)",
         "G1": "G1 (Yunanistan Super League)", "EC": "EC (Avrupa Kupaları)",
-        "CL": "CL (Şampiyonlar Ligi)"
+        "CL": "CL (Şampiyonlar Ligi)",
+        # Yeni Eklenen Ligler
+        "ARG": "ARG (Arjantin Liga Profesional)",
+        "AUT": "AUT (Avusturya Bundesliga)",
+        "BRA": "BRA (Brezilya Serie A)",
+        "CHN": "CHN (Çin Süper Ligi)",
+        "DNK": "DNK (Danimarka Superliga)",
+        "FIN": "FIN (Finlandiya Veikkausliiga)",
+        "IRL": "IRL (İrlanda Premier Division)",
+        "JPN": "JPN (Japonya J1 League)",
+        "MEX": "MEX (Meksika Liga MX)",
+        "NOR": "NOR (Norveç Eliteserien)",
+        "POL": "POL (Polonya Ekstraklasa)",
+        "ROU": "ROU (Romanya Liga I)",
+        "RUS": "RUS (Rusya Premier Lig)",
+        "SWE": "SWE (İsveç Allsvenskan)",
+        "SWZ": "SWZ (İsviçre Süper Lig)",
+        "USA": "USA (Amerika MLS)"
     }
 
     def taraf_belirle(skor_str):
@@ -160,9 +190,9 @@ if check_password():
     if uploaded_files:
         df_all_leagues = verileri_yukle_ve_birlestir(uploaded_files)
         if not df_all_leagues.empty:
-            st.success(f"✅ {len(uploaded_files)} dosya başarıyla birleştirildi! Toplam {len(df_all_leagues)} maç yüklendi.")
+            st.success(f"✅ {len(uploaded_files)} kaynak dosyası başarıyla tarandı ve toplam {len(df_all_leagues)} arşiv kaydı birleştirildi!")
         else:
-            st.warning("Yüklü excel dosyası bulunamadı ya da boş.")
+            st.warning("Sistemde okunacak arşiv dosyaları bulunamadı ya da dosyalar boş.")
     else:
         st.info("💡 Lütfen analize başlamak için Excel dosyalarınızı hazırlayın.")
         st.stop()
@@ -581,7 +611,7 @@ if check_password():
             pdf_output = pdf.output(dest='S').encode('latin-1')
             b64_pdf = base64.b64encode(pdf_output).decode('utf-8')
 
-            st.download_button(
+            st.download_button( 
                 label="⬇️ Klasik İndirme (Bilgisayar/Tablet)",
                 data=pdf_output,
                 file_name=f"{temiz_dosya_adi}.pdf",
