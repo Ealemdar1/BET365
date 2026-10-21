@@ -40,7 +40,7 @@ def check_password():
 
 if check_password():
 
-    st.title("📊 ORAN KUTBU (Çoklu Bahisçi - Toleranslı Eşleşme)")
+    st.title("📊 ORAN KUTBU (Çoklu Bahisçi - Açılış + Kapanış)")
     st.markdown("---")
 
     def tr_to_ascii(text):
@@ -74,13 +74,14 @@ if check_password():
         return html
 
 
-    def generate_summary_dashboard(total_matches, tolerans, mod_metni):
+    def generate_summary_dashboard(total_matches, tolerans, mod_metni, oran_metni):
         html = (
             f'<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 25px;">'
             f'<div style="background-color: #1a202c; border: 1px solid #3b82f6; border-radius: 12px; padding: 20px; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.15);">'
-            f'<div style="color: #93c5fd; font-weight: 600; font-size: 15px; margin-bottom: 8px;">📋 Eşleşen Maç Sayısı ({mod_metni})</div>'
+            f'<div style="color: #93c5fd; font-weight: 600; font-size: 15px; margin-bottom: 8px;">📋 Eşleşen Maç Sayısı</div>'
             f'<div style="font-size: 36px; color: #3b82f6; font-weight: bold;">{total_matches} Adet</div>'
             f'<div style="color: #64748b; font-size: 12px; margin-top: 5px;">Tolerans: ±{tolerans}</div>'
+            f'<div style="color: #94a3b8; font-size: 11px; margin-top: 3px;">{oran_metni} • {mod_metni}</div>'
             f'</div>'
             f'</div>'
         )
@@ -88,21 +89,52 @@ if check_password():
 
 
     # =====================================================
-    # BAHİSÇİ SÜTUN EŞLEŞTİRMELERİ
+    # BAHİSÇİ SÜTUN EŞLEŞTİRMELERİ (AÇILIŞ + KAPANIŞ)
     # =====================================================
-    # NOT: Bu sözlük Excel dosyalarındaki oran sütunlarına göre tanımlanmıştır.
-    # Yeni bir bahisçi eklemek istersen buraya ekleyebilirsin.
     BAHISCILER = {
-        "Pinnacle":        {"H": "PSH",    "D": "PSD",    "A": "PSA"},
-        "Bet365":          {"H": "B365H",  "D": "B365D",  "A": "B365A"},
-        "Bwin":            {"H": "BWH",    "D": "BWD",    "A": "BWA"},
-        "Interwetten":     {"H": "IWH",    "D": "IWD",    "A": "IWA"},
-        "William Hill":    {"H": "WHH",    "D": "WHD",    "A": "WHA"},
-        "VC Bet":          {"H": "VCH",    "D": "VCD",    "A": "VCA"},
-        "Betvictor":       {"H": "BVH",    "D": "BVD",    "A": "BVA"},
-        "Ortalama (Betbrain)": {"H": "BbAvH", "D": "BbAvD", "A": "BbAvA"},
-        "Maksimum (Betbrain)": {"H": "BbMxH", "D": "BbMxD", "A": "BbMxA"},
+        "Pinnacle": {
+            "acilis":  {"H": "PSH",    "D": "PSD",    "A": "PSA"},
+            "kapanis": {"H": "PSCH",   "D": "PSCD",   "A": "PSCA"},
+        },
+        "Bet365": {
+            "acilis":  {"H": "B365H",  "D": "B365D",  "A": "B365A"},
+            "kapanis": {"H": "B365CH", "D": "B365CD", "A": "B365CA"},
+        },
+        "Bwin": {
+            "acilis":  {"H": "BWH",    "D": "BWD",    "A": "BWA"},
+            "kapanis": {"H": "BWCH",   "D": "BWCD",   "A": "BWCA"},
+        },
+        "Interwetten": {
+            "acilis":  {"H": "IWH",    "D": "IWD",    "A": "IWA"},
+            "kapanis": {"H": "IWCH",   "D": "IWCD",   "A": "IWCA"},
+        },
+        "William Hill": {
+            "acilis":  {"H": "WHH",    "D": "WHD",    "A": "WHA"},
+            "kapanis": {"H": "WHCH",   "D": "WHCD",   "A": "WHCA"},
+        },
+        "VC Bet": {
+            "acilis":  {"H": "VCH",    "D": "VCD",    "A": "VCA"},
+            "kapanis": {"H": "VCCH",   "D": "VCCD",   "A": "VCCA"},
+        },
+        "Betvictor": {
+            "acilis":  {"H": "BVH",    "D": "BVD",    "A": "BVA"},
+            "kapanis": {"H": "BVCH",   "D": "BVCD",   "A": "BVCA"},
+        },
+        "Ortalama (Betbrain)": {
+            "acilis":  {"H": "BbAvH",  "D": "BbAvD",  "A": "BbAvA"},
+            "kapanis": {"H": "BbAvCH", "D": "BbAvCD", "A": "BbAvCA"},
+        },
+        "Maksimum (Betbrain)": {
+            "acilis":  {"H": "BbMxH",  "D": "BbMxD",  "A": "BbMxA"},
+            "kapanis": {"H": "BbMxCH", "D": "BbMxCD", "A": "BbMxCA"},
+        },
     }
+
+    # Oran tipi mod sabitleri
+    MODE_ACILIS = "Sadece Açılış"
+    MODE_KAPANIS = "Sadece Kapanış"
+    MODE_VEYA = "Her İkisi (VEYA - biri yeterli)"
+    MODE_VE = "Her İkisi (VE - ikisi de uyumlu)"
 
 
     uploaded_files = [
@@ -199,13 +231,52 @@ if check_password():
         )
     )
 
-    # Kullanılabilir bahisçileri bul (sadece veride var olan sütunlar)
-    mevcut_bahisciler = []
-    for isim, sutunlar in BAHISCILER.items():
-        if all(s in df_all_leagues.columns for s in sutunlar.values()):
-            # En az bir satırda oran var mı?
-            if df_all_leagues[list(sutunlar.values())].notna().any().any():
-                mevcut_bahisciler.append(isim)
+    # =====================================================
+    # ORAN TİPİ SEÇİMİ (AÇILIŞ / KAPANIŞ)
+    # =====================================================
+    st.markdown("### 📊 Oran Tipi")
+    oran_tipi = st.radio(
+        "Hangi oran setini aramak istiyorsun?",
+        options=[MODE_ACILIS, MODE_KAPANIS, MODE_VEYA, MODE_VE],
+        horizontal=True,
+        help=(
+            "Sadece Açılış: Yalnızca açılış oranları taranır.\n"
+            "Sadece Kapanış: Yalnızca kapanış oranları taranır.\n"
+            "Her İkisi (VEYA): Açılış veya kapanış oranlarından biri toleransa uyuyorsa maç listeye girer.\n"
+            "Her İkisi (VE): Hem açılış hem kapanış toleransa uyuyorsa maç listeye girer."
+        )
+    )
+
+    acilis_kullan = oran_tipi in [MODE_ACILIS, MODE_VEYA, MODE_VE]
+    kapanis_kullan = oran_tipi in [MODE_KAPANIS, MODE_VEYA, MODE_VE]
+
+    # Bu mod için uygun bahisçileri bul
+    def bahisci_uygun_mu(isim, oran_tipi):
+        sut = BAHISCILER[isim]
+        ac_cols = list(sut["acilis"].values())
+        kc_cols = list(sut["kapanis"].values())
+
+        ac_exists = all(c in df_all_leagues.columns for c in ac_cols)
+        kc_exists = all(c in df_all_leagues.columns for c in kc_cols)
+
+        ac_ok = ac_exists and df_all_leagues[ac_cols].notna().any().any()
+        kc_ok = kc_exists and df_all_leagues[kc_cols].notna().any().any()
+
+        if oran_tipi == MODE_ACILIS:
+            return ac_ok
+        elif oran_tipi == MODE_KAPANIS:
+            return kc_ok
+        elif oran_tipi == MODE_VEYA:
+            return ac_ok or kc_ok
+        elif oran_tipi == MODE_VE:
+            return ac_ok and kc_ok
+        return False
+
+    mevcut_bahisciler = [isim for isim in BAHISCILER if bahisci_uygun_mu(isim, oran_tipi)]
+
+    if not mevcut_bahisciler:
+        st.error(f"⚠️ '{oran_tipi}' modu için uygun bahisçi/veri bulunamadı. Lütfen farklı bir oran tipi seçin veya veri yükleyin.")
+        st.stop()
 
     if mod == "Tek Bahisçi":
         secilen_bahisci = st.selectbox(
@@ -227,18 +298,32 @@ if check_password():
         secilen_bahisci = "Herhangi Biri"
 
     # =====================================================
-    # ORAN GİRİŞ ALANLARI
+    # ORAN GİRİŞ ALANLARI (AÇILIŞ / KAPANIŞ)
     # =====================================================
-    st.markdown("### 🎯 Açılış Oranlarını Girin")
-    st.caption(f"Seçili bahisçi(ler): **{', '.join(aranacak_bahisciler)}**")
+    ps_h = ps_d = ps_a = None
+    ps_h_k = ps_d_k = ps_a_k = None
 
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        ps_h = st.number_input("Ev Sahibi Oranı", min_value=1.0, max_value=20.0, value=2.60, step=0.01)
-    with col2:
-        ps_d = st.number_input("Beraberlik Oranı", min_value=1.0, max_value=20.0, value=3.75, step=0.01)
-    with col3:
-        ps_a = st.number_input("Deplasman Oranı", min_value=1.0, max_value=20.0, value=2.37, step=0.01)
+    if acilis_kullan:
+        st.markdown("### 📈 Açılış Oranlarını Girin")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            ps_h = st.number_input("Ev Sahibi (Açılış)", min_value=1.0, max_value=20.0, value=2.60, step=0.01, key="in_psh_ac")
+        with col2:
+            ps_d = st.number_input("Beraberlik (Açılış)", min_value=1.0, max_value=20.0, value=3.75, step=0.01, key="in_psd_ac")
+        with col3:
+            ps_a = st.number_input("Deplasman (Açılış)", min_value=1.0, max_value=20.0, value=2.37, step=0.01, key="in_psa_ac")
+
+    if kapanis_kullan:
+        st.markdown("### 📉 Kapanış Oranlarını Girin")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            ps_h_k = st.number_input("Ev Sahibi (Kapanış)", min_value=1.0, max_value=20.0, value=2.60, step=0.01, key="in_psh_kc")
+        with col2:
+            ps_d_k = st.number_input("Beraberlik (Kapanış)", min_value=1.0, max_value=20.0, value=3.75, step=0.01, key="in_psd_kc")
+        with col3:
+            ps_a_k = st.number_input("Deplasman (Kapanış)", min_value=1.0, max_value=20.0, value=2.37, step=0.01, key="in_psa_kc")
+
+    st.caption(f"Seçili bahisçi(ler): **{', '.join(aranacak_bahisciler)}** | Mod: **{oran_tipi}**")
 
     # TOLERANS SLIDER
     st.markdown("### ⚙️ Eşleşme Toleransı")
@@ -251,10 +336,20 @@ if check_password():
     if tolerans == 0:
         st.caption("🔒 Şu an **birebir tam eşleşme** modundasınız.")
     else:
-        st.caption(f"📏 **±{tolerans}** tolerans aktif. Aralıklar: "
-                   f"Ev [{ps_h - tolerans:.2f} – {ps_h + tolerans:.2f}], "
-                   f"Ber [{ps_d - tolerans:.2f} – {ps_d + tolerans:.2f}], "
-                   f"Dep [{ps_a - tolerans:.2f} – {ps_a + tolerans:.2f}]")
+        info_parts = []
+        if acilis_kullan:
+            info_parts.append(
+                f"Açılış → Ev [{ps_h - tolerans:.2f}–{ps_h + tolerans:.2f}], "
+                f"Ber [{ps_d - tolerans:.2f}–{ps_d + tolerans:.2f}], "
+                f"Dep [{ps_a - tolerans:.2f}–{ps_a + tolerans:.2f}]"
+            )
+        if kapanis_kullan:
+            info_parts.append(
+                f"Kapanış → Ev [{ps_h_k - tolerans:.2f}–{ps_h_k + tolerans:.2f}], "
+                f"Ber [{ps_d_k - tolerans:.2f}–{ps_d_k + tolerans:.2f}], "
+                f"Dep [{ps_a_k - tolerans:.2f}–{ps_a_k + tolerans:.2f}]"
+            )
+        st.caption(f"📏 **±{tolerans}** tolerans aktif. " + " | ".join(info_parts))
 
     # Lig Filtresi
     st.sidebar.header("🌍 Filtreler")
@@ -270,48 +365,110 @@ if check_password():
         if secilen_ligler:
             df_temp = df_temp[df_temp['Source_Sheet'].isin(secilen_ligler)]
 
-        # Tüm aday satırları bul
         eslesen_satirlar = []
 
         for bahisci in aranacak_bahisciler:
             if bahisci not in BAHISCILER:
                 continue
-            h_col = BAHISCILER[bahisci]["H"]
-            d_col = BAHISCILER[bahisci]["D"]
-            a_col = BAHISCILER[bahisci]["A"]
+            sut = BAHISCILER[bahisci]
+            ac_cols = sut["acilis"]
+            kc_cols = sut["kapanis"]
 
-            if not all(c in df_temp.columns for c in [h_col, d_col, a_col]):
-                continue
-
-            # Oranları sayısala çevir
             tmp = df_temp.copy()
-            for c in [h_col, d_col, a_col]:
-                tmp[c] = pd.to_numeric(tmp[c], errors='coerce')
-            tmp = tmp.dropna(subset=[h_col, d_col, a_col])
+            mask_ac = None
+            mask_kc = None
 
-            if tmp.empty:
+            # Açılış maskesi
+            if acilis_kullan:
+                ac_h, ac_d, ac_a = ac_cols["H"], ac_cols["D"], ac_cols["A"]
+                if all(c in tmp.columns for c in [ac_h, ac_d, ac_a]):
+                    for c in [ac_h, ac_d, ac_a]:
+                        tmp[c] = pd.to_numeric(tmp[c], errors='coerce')
+                    mask_ac = (
+                        tmp[ac_h].between(ps_h - tolerans, ps_h + tolerans) &
+                        tmp[ac_d].between(ps_d - tolerans, ps_d + tolerans) &
+                        tmp[ac_a].between(ps_a - tolerans, ps_a + tolerans)
+                    )
+
+            # Kapanış maskesi
+            if kapanis_kullan:
+                kc_h, kc_d, kc_a = kc_cols["H"], kc_cols["D"], kc_cols["A"]
+                if all(c in tmp.columns for c in [kc_h, kc_d, kc_a]):
+                    for c in [kc_h, kc_d, kc_a]:
+                        tmp[c] = pd.to_numeric(tmp[c], errors='coerce')
+                    mask_kc = (
+                        tmp[kc_h].between(ps_h_k - tolerans, ps_h_k + tolerans) &
+                        tmp[kc_d].between(ps_d_k - tolerans, ps_d_k + tolerans) &
+                        tmp[kc_a].between(ps_a_k - tolerans, ps_a_k + tolerans)
+                    )
+
+            # Moda göre nihai maske
+            if oran_tipi == MODE_ACILIS:
+                final_mask = mask_ac
+            elif oran_tipi == MODE_KAPANIS:
+                final_mask = mask_kc
+            elif oran_tipi == MODE_VEYA:
+                if mask_ac is not None and mask_kc is not None:
+                    final_mask = mask_ac | mask_kc
+                else:
+                    final_mask = mask_ac if mask_ac is not None else mask_kc
+            elif oran_tipi == MODE_VE:
+                if mask_ac is not None and mask_kc is not None:
+                    final_mask = mask_ac & mask_kc
+                else:
+                    final_mask = None
+            else:
+                final_mask = None
+
+            if final_mask is None:
                 continue
 
-            # Toleranslı eşleşme
-            mask = (
-                tmp[h_col].between(ps_h - tolerans, ps_h + tolerans) &
-                tmp[d_col].between(ps_d - tolerans, ps_d + tolerans) &
-                tmp[a_col].between(ps_a - tolerans, ps_a + tolerans)
-            )
-            matched = tmp[mask].copy()
+            matched = tmp[final_mask].copy()
             if matched.empty:
                 continue
 
-            matched['Eslesen_Bahisci'] = bahisci
-            matched['B_H'] = matched[h_col]
-            matched['B_D'] = matched[d_col]
-            matched['B_A'] = matched[a_col]
-            # Fark sütunları
-            matched['Fark_H'] = (matched[h_col] - ps_h).round(2)
-            matched['Fark_D'] = (matched[d_col] - ps_d).round(2)
-            matched['Fark_A'] = (matched[a_col] - ps_a).round(2)
+            # Eşleşme tipini belirle
+            if oran_tipi == MODE_ACILIS:
+                tip_series = pd.Series(['Aç'] * len(matched), index=matched.index)
+            elif oran_tipi == MODE_KAPANIS:
+                tip_series = pd.Series(['Kap'] * len(matched), index=matched.index)
+            else:
+                ac_bool = (mask_ac.reindex(matched.index, fill_value=False)
+                           if mask_ac is not None else pd.Series(False, index=matched.index))
+                kc_bool = (mask_kc.reindex(matched.index, fill_value=False)
+                           if mask_kc is not None else pd.Series(False, index=matched.index))
 
-            # Aynı satır (maç) farklı bahisçilerde de çıkabilir → sonra birleştireceğiz
+                def get_tip(a, k):
+                    if a and k: return 'Aç+Kap'
+                    elif a: return 'Aç'
+                    elif k: return 'Kap'
+                    return '-'
+                tip_series = pd.Series([get_tip(a, k) for a, k in zip(ac_bool, kc_bool)], index=matched.index)
+
+            matched['Eslesen_Bahisci'] = bahisci + ' (' + tip_series + ')'
+
+            # Açılış değerleri
+            ac_h, ac_d, ac_a = ac_cols["H"], ac_cols["D"], ac_cols["A"]
+            if all(c in matched.columns for c in [ac_h, ac_d, ac_a]):
+                matched['AC_H'] = matched[ac_h]
+                matched['AC_D'] = matched[ac_d]
+                matched['AC_A'] = matched[ac_a]
+                if acilis_kullan:
+                    matched['Fark_AC_H'] = (matched[ac_h] - ps_h).round(2)
+                    matched['Fark_AC_D'] = (matched[ac_d] - ps_d).round(2)
+                    matched['Fark_AC_A'] = (matched[ac_a] - ps_a).round(2)
+
+            # Kapanış değerleri
+            kc_h, kc_d, kc_a = kc_cols["H"], kc_cols["D"], kc_cols["A"]
+            if all(c in matched.columns for c in [kc_h, kc_d, kc_a]):
+                matched['KC_H'] = matched[kc_h]
+                matched['KC_D'] = matched[kc_d]
+                matched['KC_A'] = matched[kc_a]
+                if kapanis_kullan:
+                    matched['Fark_KC_H'] = (matched[kc_h] - ps_h_k).round(2)
+                    matched['Fark_KC_D'] = (matched[kc_d] - ps_d_k).round(2)
+                    matched['Fark_KC_A'] = (matched[kc_a] - ps_a_k).round(2)
+
             eslesen_satirlar.append(matched)
 
         if not eslesen_satirlar:
@@ -323,21 +480,19 @@ if check_password():
         else:
             birlesik = pd.concat(eslesen_satirlar, ignore_index=True)
 
-            # Aynı maç birden fazla bahisçide eşleşmişse: grupla, bahisçi isimlerini birleştir
-            # Maç tanımlayıcı: Date + HomeTeam + AwayTeam
             grup_kolonlari = [c for c in ['Date', 'HomeTeam', 'AwayTeam', 'Source_Sheet'] if c in birlesik.columns]
 
             if grup_kolonlari:
                 birlesik['Eslesen_Bahisci_Str'] = birlesik['Eslesen_Bahisci']
-                # Her maç için hangi bahisçiler eşleşti
                 agg_dict = {
                     'Eslesen_Bahisci_Str': lambda x: ', '.join(sorted(set(x))),
                 }
-                # Sayısal sütunlar için ortalama veya ilk değer alalım
-                for c in ['B_H', 'B_D', 'B_A', 'Fark_H', 'Fark_D', 'Fark_A']:
+                # Oran ve fark kolonları
+                for c in ['AC_H', 'AC_D', 'AC_A', 'KC_H', 'KC_D', 'KC_A',
+                          'Fark_AC_H', 'Fark_AC_D', 'Fark_AC_A',
+                          'Fark_KC_H', 'Fark_KC_D', 'Fark_KC_A']:
                     if c in birlesik.columns:
                         agg_dict[c] = 'first'
-                # HTHG, HTAG, FTHG, FTAG varsa
                 for c in ['HTHG', 'HTAG', 'FTHG', 'FTAG']:
                     if c in birlesik.columns:
                         agg_dict[c] = 'first'
@@ -347,7 +502,6 @@ if check_password():
             else:
                 ozet = birlesik.copy()
 
-            # İY / MS skorları
             for col in ['HTHG', 'HTAG', 'FTHG', 'FTAG']:
                 if col in ozet.columns:
                     ozet[col] = pd.to_numeric(ozet[col], errors='coerce').fillna(0).astype(int)
@@ -357,16 +511,29 @@ if check_password():
             ozet['İY'] = ozet['HTHG'].astype(str) + '-' + ozet['HTAG'].astype(str)
             ozet['MS'] = ozet['FTHG'].astype(str) + '-' + ozet['FTAG'].astype(str)
 
-            gosterilecek_kolonlar = ['Date', 'Source_Sheet', 'HomeTeam', 'AwayTeam',
-                                     'Eslesen_Bahisci',
-                                     'B_H', 'B_D', 'B_A',
-                                     'Fark_H', 'Fark_D', 'Fark_A',
-                                     'İY', 'MS']
+            temel_kolonlar = ['Date', 'Source_Sheet', 'HomeTeam', 'AwayTeam', 'Eslesen_Bahisci']
+            ac_kolonlar = ['AC_H', 'AC_D', 'AC_A']
+            kc_kolonlar = ['KC_H', 'KC_D', 'KC_A']
+            fark_ac_kolonlar = ['Fark_AC_H', 'Fark_AC_D', 'Fark_AC_A']
+            fark_kc_kolonlar = ['Fark_KC_H', 'Fark_KC_D', 'Fark_KC_A']
+            skor_kolonlar = ['İY', 'MS']
+
+            gosterilecek_kolonlar = temel_kolonlar[:]
+            if acilis_kullan:
+                gosterilecek_kolonlar += [c for c in ac_kolonlar if c in ozet.columns]
+                gosterilecek_kolonlar += [c for c in fark_ac_kolonlar if c in ozet.columns]
+            if kapanis_kullan:
+                gosterilecek_kolonlar += [c for c in kc_kolonlar if c in ozet.columns]
+                gosterilecek_kolonlar += [c for c in fark_kc_kolonlar if c in ozet.columns]
+            gosterilecek_kolonlar += skor_kolonlar
+
             final_tablo = ozet[[c for c in gosterilecek_kolonlar if c in ozet.columns]].copy()
-            # Sütun isimlerini güzelleştir
+
             final_tablo = final_tablo.rename(columns={
-                'B_H': 'Oran_H', 'B_D': 'Oran_D', 'B_A': 'Oran_A',
-                'Fark_H': 'Fark_H', 'Fark_D': 'Fark_D', 'Fark_A': 'Fark_A'
+                'AC_H': 'Aç_Ev', 'AC_D': 'Aç_Ber', 'AC_A': 'Aç_Dep',
+                'KC_H': 'Kap_Ev', 'KC_D': 'Kap_Ber', 'KC_A': 'Kap_Dep',
+                'Fark_AC_H': 'F_Aç_Ev', 'Fark_AC_D': 'F_Aç_Ber', 'Fark_AC_A': 'F_Aç_Dep',
+                'Fark_KC_H': 'F_Kap_Ev', 'Fark_KC_D': 'F_Kap_Ber', 'Fark_KC_A': 'F_Kap_Dep',
             })
 
             st.session_state.final_tablo = final_tablo
@@ -375,18 +542,23 @@ if check_password():
             st.session_state.kullanilan_psh = ps_h
             st.session_state.kullanilan_psd = ps_d
             st.session_state.kullanilan_psa = ps_a
+            st.session_state.kullanilan_psh_k = ps_h_k
+            st.session_state.kullanilan_psd_k = ps_d_k
+            st.session_state.kullanilan_psa_k = ps_a_k
             st.session_state.kullanilan_mod = mod
+            st.session_state.kullanilan_oran_tipi = oran_tipi
             st.session_state.kullanilan_bahisciler = aranacak_bahisciler
 
     if st.session_state.analiz_yapildi:
         final_tablo = st.session_state.final_tablo
         tolerans_aktif = st.session_state.get('kullanilan_tolerans', tolerans)
         mod_aktif = st.session_state.get('kullanilan_mod', mod)
+        oran_tipi_aktif = st.session_state.get('kullanilan_oran_tipi', oran_tipi)
         bahisciler_aktif = st.session_state.get('kullanilan_bahisciler', aranacak_bahisciler)
 
         mod_metni = mod_aktif if mod_aktif == "Herhangi Biri (Tüm Bahisçiler)" else f"Tek Bahisçi: {bahisciler_aktif[0]}"
 
-        st.markdown(generate_summary_dashboard(len(final_tablo), tolerans_aktif, mod_metni), unsafe_allow_html=True)
+        st.markdown(generate_summary_dashboard(len(final_tablo), tolerans_aktif, mod_metni, oran_tipi_aktif), unsafe_allow_html=True)
 
         st.subheader(f"🎯 {len(final_tablo)} Maç Eşleşti")
         st.dataframe(final_tablo, use_container_width=True)
@@ -569,7 +741,7 @@ if check_password():
 
             pdf.set_xy(15, 43)
             pdf.set_fill_color(*color_sec_bg)
-            pdf.cell(180, 20, txt="", ln=False, fill=True)
+            pdf.cell(180, 26, txt="", ln=False, fill=True)
             pdf.set_text_color(*color_text_dark)
             pdf.set_font("Helvetica", 'B', 10)
             pdf.set_xy(20, 45)
@@ -579,17 +751,32 @@ if check_password():
             pdf.set_font("Helvetica", '', 9)
             pdf.set_text_color(*color_text_muted)
             tolerans_metni = "Birebir" if tolerans_aktif == 0 else f"±{tolerans_aktif}"
-            pdf.cell(170, 4, txt=tr_to_ascii(
-                f"Giris Oranlari: Ev: {st.session_state.get('kullanilan_psh', ps_h)} | "
-                f"Ber: {st.session_state.get('kullanilan_psd', ps_d)} | "
-                f"Dep: {st.session_state.get('kullanilan_psa', ps_a)} | "
-                f"Tolerans: {tolerans_metni}"
-            ), ln=True)
-            pdf.set_xy(20, 55)
+
+            oran_satirlari = [f"Oran Tipi: {oran_tipi_aktif} | Tolerans: {tolerans_metni}"]
+            if oran_tipi_aktif in [MODE_ACILIS, MODE_VEYA, MODE_VE]:
+                oran_satirlari.append(
+                    f"Acilis Giris: Ev: {st.session_state.get('kullanilan_psh')} | "
+                    f"Ber: {st.session_state.get('kullanilan_psd')} | "
+                    f"Dep: {st.session_state.get('kullanilan_psa')}"
+                )
+            if oran_tipi_aktif in [MODE_KAPANIS, MODE_VEYA, MODE_VE]:
+                oran_satirlari.append(
+                    f"Kapanis Giris: Ev: {st.session_state.get('kullanilan_psh_k')} | "
+                    f"Ber: {st.session_state.get('kullanilan_psd_k')} | "
+                    f"Dep: {st.session_state.get('kullanilan_psa_k')}"
+                )
+
+            y_pos = 50
+            for satir in oran_satirlari:
+                pdf.set_xy(20, y_pos)
+                pdf.cell(170, 4, txt=tr_to_ascii(satir), ln=True)
+                y_pos += 4
+
+            pdf.set_xy(20, y_pos + 1)
             pdf.cell(170, 4, txt=tr_to_ascii(
                 f"Mod: {mod_aktif} | Bahisciler: {', '.join(bahisciler_aktif)}"
             ), ln=True)
-            pdf.ln(12)
+            pdf.ln(14)
 
             # IDEAL TERCİHLER
             pdf.set_text_color(*color_text_dark)
