@@ -5,7 +5,7 @@ import os
 import base64
 from fpdf import FPDF
 
-st.set_page_config(page_title="Gelişmiş Oran Analiz Sistemi (Tam Eşleşme)", layout="wide")
+st.set_page_config(page_title="Gelişmiş Oran Analiz Sistemi (Pinnacle Tam Eşleşme)", layout="wide")
 
 # =====================================================
 # GÜVENLİK VE GİRİŞ ŞİFRESİ SİSTEMİ
@@ -51,7 +51,7 @@ def check_password():
 
 # Şifre kontrolünü çalıştır
 if check_password():
-    st.title("📊 ORAN KUTBU (Bet365 - Birebir Tam Eşleşme)")
+    st.title("📊 ORAN KUTBU (Pinnacle - Birebir Tam Eşleşme)")
     st.markdown("---")
 
     # PDF için Türkçe karakter dönüştürücü
@@ -191,17 +191,17 @@ if check_password():
         st.stop()
 
     # =====================================================
-    # MOBİL UYUMLU KOMPAKT YAN YANA ORAN GİRİŞ ALANI (Bet365)
+    # MOBİL UYUMLU KOMPAKT YAN YANA ORAN GİRİŞ ALANI (Pinnacle)
     # =====================================================
-    st.markdown("### 🎯 Bet365 Açılış Oranlarını Girin (Sadece Tam Eşleşmeler Filtrelenir)")
+    st.markdown("### 🎯 Pinnacle Açılış Oranlarını Girin (Sadece Tam Eşleşmeler Filtrelenir)")
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        b365h = st.number_input("Ev Sahibi Açılış (B365H)", min_value=1.0, max_value=20.0, value=2.60, step=0.01)
+        ps_h = st.number_input("Ev Sahibi Açılış (PSH)", min_value=1.0, max_value=20.0, value=2.60, step=0.01)
     with col2:
-        b365d = st.number_input("Beraberlik Açılış (B365D)", min_value=1.0, max_value=20.0, value=3.75, step=0.01)
+        ps_d = st.number_input("Beraberlik Açılış (PSD)", min_value=1.0, max_value=20.0, value=3.75, step=0.01)
     with col3:
-        b365a = st.number_input("Deplasman Açılış (B365A)", min_value=1.0, max_value=20.0, value=2.37, step=0.01)
+        ps_a = st.number_input("Deplasman Açılış (PSA)", min_value=1.0, max_value=20.0, value=2.37, step=0.01)
 
     # Lig ve Limit Filtreleri (Sol Panel)
     st.sidebar.header("🌍 Filtreler")
@@ -217,20 +217,20 @@ if check_password():
         if secilen_ligler:
             df_temp = df_temp[df_temp['Source_Sheet'].isin(secilen_ligler)]
 
-        # Bet365 Oran Sütunları
-        oran_sutunlari = ['B365H', 'B365D', 'B365A']
+        # Pinnacle Oran Sütunları
+        oran_sutunlari = ['PSH', 'PSD', 'PSA']
         for col in oran_sutunlari:
             df_temp[col] = pd.to_numeric(df_temp[col], errors='coerce')
         df_temp = df_temp.dropna(subset=oran_sutunlari)
 
         if df_temp.empty:
-            st.warning("Seçilen kriterlere uygun Bet365 oran verisi bulunan maç kalmadı.")
+            st.warning("Seçilen kriterlere uygun Pinnacle oran verisi bulunan maç kalmadı.")
         else:
             # Birebir tam eşleşme filtresi
             sonuc_df = df_temp[
-                (df_temp['B365H'] == b365h) &
-                (df_temp['B365D'] == b365d) &
-                (df_temp['B365A'] == b365a)
+                (df_temp['PSH'] == ps_h) &
+                (df_temp['PSD'] == ps_d) &
+                (df_temp['PSA'] == ps_a)
             ].copy()
 
             if sonuc_df.empty:
@@ -244,7 +244,7 @@ if check_password():
                 sonuc_df['İY'] = sonuc_df['HTHG'].astype(str) + '-' + sonuc_df['HTAG'].astype(str)
                 sonuc_df['MS'] = sonuc_df['FTHG'].astype(str) + '-' + sonuc_df['FTAG'].astype(str)
 
-                gosterilecek_kolonlar = ['Date', 'Source_Sheet', 'HomeTeam', 'AwayTeam', 'B365H', 'B365D', 'B365A', 'İY', 'MS']
+                gosterilecek_kolonlar = ['Date', 'Source_Sheet', 'HomeTeam', 'AwayTeam', 'PSH', 'PSD', 'PSA', 'İY', 'MS']
                 final_tablo = sonuc_df[[c for c in gosterilecek_kolonlar if c in sonuc_df.columns]]
 
                 st.session_state.final_tablo = final_tablo
@@ -428,7 +428,7 @@ if check_password():
         pdf.set_xy(20, 50)
         pdf.set_font("Helvetica", '', 9)
         pdf.set_text_color(*color_text_muted)
-        pdf.cell(170, 4, txt=tr_to_ascii(f"Giris Oranlari (Bet365):  Ev: {b365h}  |   Ber: {b365d}  |   Dep: {b365a}"), ln=True)
+        pdf.cell(170, 4, txt=tr_to_ascii(f"Giris Oranlari (Pinnacle):  Ev: {ps_h}  |   Ber: {ps_d}  |   Dep: {ps_a}"), ln=True)
 
         pdf.ln(10)
 
