@@ -5,7 +5,7 @@ import os
 import base64
 from fpdf import FPDF
 
-st.set_page_config(page_title="Gelişmiş Oran Analiz Sistemi", layout="wide")
+st.set_page_config(page_title="Gelişmiş Oran Analiz Sistemi (Tam Eşleşme)", layout="wide")
 
 # =====================================================
 # GÜVENLİK VE GİRİŞ ŞİFRESİ SİSTEMİ
@@ -31,16 +31,14 @@ def check_password():
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
         }
     </style>
-    """)
+    """, unsafe_allow_html=True)
 
     st.markdown('<div class="login-box">', unsafe_allow_html=True)
     st.subheader("🔒 Sefin Kuponu Portal Girişi")
     st.write("Devam etmek için lütfen giriş şifresini giriniz.")
 
-    # Şifre girdi alanı
     password_input = st.text_input("Şifre", type="password", key="portal_pass_input")
 
-    # Şifre kontrolü (Kullanıcı tarafından belirlenen şifre: "225960")
     if st.button("Giriş Yap", use_container_width=True):
         if password_input == "225960":
             st.session_state.authorized = True
@@ -53,7 +51,7 @@ def check_password():
 
 # Şifre kontrolünü çalıştır
 if check_password():
-    st.title("📊 ORAN KUTBU (Bet365)")
+    st.title("📊 ORAN KUTBU (Bet365 - Birebir Tam Eşleşme)")
     st.markdown("---")
 
     # PDF için Türkçe karakter dönüştürücü
@@ -89,18 +87,13 @@ if check_password():
         return html
 
     # ÖZET DASHBOARD KARTLARI
-    def generate_summary_dashboard(total_matches, avg_distance):
+    def generate_summary_dashboard(total_matches):
         html = (
             f'<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 25px;">'
             f'<div style="background-color: #1a202c; border: 1px solid #3b82f6; border-radius: 12px; padding: 20px; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.15);">'
-            f'<div style="color: #93c5fd; font-weight: 600; font-size: 15px; margin-bottom: 8px;">📋 Analiz Edilen Maç Sayısı</div>'
+            f'<div style="color: #93c5fd; font-weight: 600; font-size: 15px; margin-bottom: 8px;">📋 Birebir Tam Eşleşen Maç Sayısı</div>'
             f'<div style="font-size: 36px; color: #3b82f6; font-weight: bold;">{total_matches} Adet</div>'
-            f'<div style="color: #64748b; font-size: 12px; margin-top: 5px;">En yakın oran eşleşmesine sahip toplam maç</div>'
-            f'</div>'
-            f'<div style="background-color: #1a202c; border: 1px solid #f59e0b; border-radius: 12px; padding: 20px; box-shadow: 0 4px 10px rgba(245, 158, 11, 0.15);">'
-            f'<div style="color: #fde047; font-weight: 600; font-size: 15px; margin-bottom: 8px;">📏 Ortalama Yakınlık Derecesi (Mesafe)</div>'
-            f'<div style="font-size: 36px; color: #f59e0b; font-weight: bold;">{avg_distance:.4f}</div>'
-            f'<div style="color: #64748b; font-size: 12px; margin-top: 5px;">Sıfıra yakın değerler daha iyi bir eşleşmeyi gösterir</div>'
+            f'<div style="color: #64748b; font-size: 12px; margin-top: 5px;">Seçilen açılış oranları ile birebir aynı olan maç sayısı</div>'
             f'</div>'
             f'</div>'
         )
@@ -200,47 +193,21 @@ if check_password():
     # =====================================================
     # MOBİL UYUMLU KOMPAKT YAN YANA ORAN GİRİŞ ALANI (Bet365)
     # =====================================================
-    st.markdown("### 🎯 Bet365 Hedef Oranlarını Girin")
+    st.markdown("### 🎯 Bet365 Açılış Oranlarını Girin (Sadece Tam Eşleşmeler Filtrelenir)")
 
-    # Başlık Sütunları
-    col_h1, col_h2 = st.columns(2)
-    with col_h1:
-        st.markdown("**📥 Açılış Oranları (Bet365)**")
-    with col_h2:
-        st.markdown("**📤 Kapanış Oranları (Bet365)**")
-
-    # 1. Ev Sahibi Oranları
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     with col1:
-        b365h = st.number_input("Ev Sahibi (B365H)", min_value=1.0, max_value=20.0, value=2.60, step=0.01)
+        b365h = st.number_input("Ev Sahibi Açılış (B365H)", min_value=1.0, max_value=20.0, value=2.60, step=0.01)
     with col2:
-        b365ch = st.number_input("Ev Sahibi (B365CH)", min_value=1.0, max_value=20.0, value=2.75, step=0.01)
-
-    st.markdown("<hr style='margin: 8px 0px; border-color: rgba(49, 51, 63, 0.2);'>", unsafe_allow_html=True)
-
-    # 2. Beraberlik Oranları
-    col3, col4 = st.columns(2)
+        b365d = st.number_input("Beraberlik Açılış (B365D)", min_value=1.0, max_value=20.0, value=3.75, step=0.01)
     with col3:
-        b365d = st.number_input("Beraberlik (B365D)", min_value=1.0, max_value=20.0, value=3.75, step=0.01)
-    with col4:
-        b365cd = st.number_input("Beraberlik (B365CD)", min_value=1.0, max_value=20.0, value=3.75, step=0.01)
-
-    st.markdown("<hr style='margin: 8px 0px; border-color: rgba(49, 51, 63, 0.2);'>", unsafe_allow_html=True)
-
-    # 3. Deplasman Oranları
-    col5, col6 = st.columns(2)
-    with col5:
-        b365a = st.number_input("Deplasman (B365A)", min_value=1.0, max_value=20.0, value=2.37, step=0.01)
-    with col6:
-        b365ca = st.number_input("Deplasman (B365CA)", min_value=1.0, max_value=20.0, value=2.35, step=0.01)
+        b365a = st.number_input("Deplasman Açılış (B365A)", min_value=1.0, max_value=20.0, value=2.37, step=0.01)
 
     # Lig ve Limit Filtreleri (Sol Panel)
     st.sidebar.header("🌍 Filtreler")
     benzersiz_ligler = sorted(df_all_leagues['Source_Sheet'].dropna().unique().tolist()) if not df_all_leagues.empty else []
     secilen_ligler = st.sidebar.multiselect("Lig Filtrele", benzersiz_ligler)
-    limit_val = st.sidebar.slider("📋 En Yakın Maç Sayısı", min_value=5, max_value=50, value=20)
 
-    # ANALİZ YAP BUTONU TETİKLEME VE SEANS HAFIZASI
     if "analiz_yapildi" not in st.session_state:
         st.session_state.analiz_yapildi = False
 
@@ -251,7 +218,7 @@ if check_password():
             df_temp = df_temp[df_temp['Source_Sheet'].isin(secilen_ligler)]
 
         # Bet365 Oran Sütunları
-        oran_sutunlari = ['B365H', 'B365D', 'B365A', 'B365CH', 'B365CD', 'B365CA']
+        oran_sutunlari = ['B365H', 'B365D', 'B365A']
         for col in oran_sutunlari:
             df_temp[col] = pd.to_numeric(df_temp[col], errors='coerce')
         df_temp = df_temp.dropna(subset=oran_sutunlari)
@@ -259,62 +226,51 @@ if check_password():
         if df_temp.empty:
             st.warning("Seçilen kriterlere uygun Bet365 oran verisi bulunan maç kalmadı.")
         else:
-            hedef = np.array([b365h, b365d, b365a, b365ch, b365cd, b365ca])
-            mesafeler = []
-            progress_bar = st.progress(0)
-            total_rows = len(df_temp)
+            # Birebir tam eşleşme filtresi
+            sonuc_df = df_temp[
+                (df_temp['B365H'] == b365h) &
+                (df_temp['B365D'] == b365d) &
+                (df_temp['B365A'] == b365a)
+            ].copy()
 
-            for i, (idx, row) in enumerate(df_temp.iterrows()):
-                mevcut = np.array([row['B365H'], row['B365D'], row['B365A'], row['B365CH'], row['B365CD'], row['B365CA']])
-                mesafe = np.linalg.norm(mevcut - hedef)
-                mesafeler.append((idx, round(mesafe, 4)))
-                if i % 1000 == 0 or i == total_rows - 1:
-                    progress_bar.progress(min((i + 1) / total_rows, 1.0))
-            progress_bar.empty()
+            if sonuc_df.empty:
+                st.warning("Seçilen açılış oranları ile birebir tam eşleşen hiçbir maç bulunamadı.")
+                st.session_state.analiz_yapildi = False
+            else:
+                for col in ['HTHG', 'HTAG', 'FTHG', 'FTAG']:
+                    if col in sonuc_df.columns:
+                        sonuc_df[col] = pd.to_numeric(sonuc_df[col], errors='coerce').fillna(0).astype(int)
 
-            mesafeler.sort(key=lambda x: x[1])
-            en_yakin_indeksler = [x[0] for x in mesafeler[:limit_val]]
-            en_yakin_mesafeler = [x[1] for x in mesafeler[:limit_val]]
+                sonuc_df['İY'] = sonuc_df['HTHG'].astype(str) + '-' + sonuc_df['HTAG'].astype(str)
+                sonuc_df['MS'] = sonuc_df['FTHG'].astype(str) + '-' + sonuc_df['FTAG'].astype(str)
 
-            sonuc_df = df_temp.loc[en_yakin_indeksler].copy()
-            sonuc_df['Oran_Farki_Mesafe'] = en_yakin_mesafeler
+                gosterilecek_kolonlar = ['Date', 'Source_Sheet', 'HomeTeam', 'AwayTeam', 'B365H', 'B365D', 'B365A', 'İY', 'MS']
+                final_tablo = sonuc_df[[c for c in gosterilecek_kolonlar if c in sonuc_df.columns]]
 
-            for col in ['HTHG', 'HTAG', 'FTHG', 'FTAG']:
-                if col in sonuc_df.columns:
-                    sonuc_df[col] = pd.to_numeric(sonuc_df[col], errors='coerce').fillna(0).astype(int)
+                st.session_state.final_tablo = final_tablo
+                st.session_state.analiz_yapildi = True
 
-            sonuc_df['İY'] = sonuc_df['HTHG'].astype(str) + '-' + sonuc_df['HTAG'].astype(str)
-            sonuc_df['MS'] = sonuc_df['FTHG'].astype(str) + '-' + sonuc_df['FTAG'].astype(str)
-
-            gosterilecek_kolonlar = ['Date', 'Source_Sheet', 'HomeTeam', 'AwayTeam', 'B365H', 'B365D', 'B365A', 'B365CH', 'B365CD', 'B365CA', 'Oran_Farki_Mesafe', 'İY', 'MS']
-            final_tablo = sonuc_df[[c for c in gosterilecek_kolonlar if c in sonuc_df.columns]]
-
-            st.session_state.final_tablo = final_tablo
-            st.session_state.analiz_yapildi = True
-
-    # Eğer analiz yapılmışsa sonuçları session_state'den okuyup çiziyoruz
     if st.session_state.analiz_yapildi:
         final_tablo = st.session_state.final_tablo
 
         # --- ÖZET DASHBOARD KARTLARI ---
-        avg_dist_val = final_tablo['Oran_Farki_Mesafe'].mean() if 'Oran_Farki_Mesafe' in final_tablo.columns else 0.0
-        st.markdown(generate_summary_dashboard(len(final_tablo), avg_dist_val), unsafe_allow_html=True)
+        st.markdown(generate_summary_dashboard(len(final_tablo)), unsafe_allow_html=True)
 
-        st.subheader(f"🎯 En Yakın {len(final_tablo)} Maç")
+        st.subheader(f"🎯 Birebir Eşleşen {len(final_tablo)} Maç")
         st.dataframe(final_tablo, use_container_width=True)
 
         st.markdown("### 📊 Skor ve İstatistiki Dağılımlar")
         col_stat1, col_stat2, col_stat3 = st.columns(3)
 
-        iy_dagilim = final_tablo['İY'].value_counts().reset_index().rename(columns={'İY': 'Adet'})
+        iy_dagilim = final_tablo['İY'].value_counts().reset_index().rename(columns={'index': 'İY Skoru', 'İY': 'Adet'})
         iy_dagilim.columns = ['İY Skoru', 'Adet']
 
-        ms_dagilim = final_tablo['MS'].value_counts().reset_index().rename(columns={'MS': 'Adet'})
+        ms_dagilim = final_tablo['MS'].value_counts().reset_index().rename(columns={'index': 'MS Skoru', 'MS': 'Adet'})
         ms_dagilim.columns = ['MS Skoru', 'Adet']
 
         temp_copy = final_tablo.copy()
         temp_copy['İY/MS'] = temp_copy['İY'].apply(taraf_belirle) + '/' + temp_copy['MS'].apply(taraf_belirle)
-        iyms_dagilim = temp_copy['İY/MS'].value_counts().reset_index().rename(columns={'İY/MS': 'Adet'})
+        iyms_dagilim = temp_copy['İY/MS'].value_counts().reset_index().rename(columns={'index': 'İY/MS', 'İY/MS': 'Adet'})
         iyms_dagilim.columns = ['İY/MS', 'Adet']
 
         with col_stat1:
@@ -472,7 +428,7 @@ if check_password():
         pdf.set_xy(20, 50)
         pdf.set_font("Helvetica", '', 9)
         pdf.set_text_color(*color_text_muted)
-        pdf.cell(170, 4, txt=tr_to_ascii(f"Giris Oranlari (Bet365):  Ev: {b365h} / {b365ch}   |   Ber: {b365d} / {b365cd}   |   Dep: {b365a} / {b365ca}"), ln=True)
+        pdf.cell(170, 4, txt=tr_to_ascii(f"Giris Oranlari (Bet365):  Ev: {b365h}  |   Ber: {b365d}  |   Dep: {b365a}"), ln=True)
 
         pdf.ln(10)
 
