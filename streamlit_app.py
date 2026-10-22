@@ -5,6 +5,7 @@ import os
 import base64
 from fpdf import FPDF
 from google import genai
+import plotly.express as px
 
 st.set_page_config(page_title="Gelişmiş Oran Analiz Sistemi (Çoklu Bahisçi)", layout="wide")
 
@@ -71,6 +72,66 @@ if True:
             f'</div>'
         )
         return html
+
+
+    # =====================================================
+    # ANİMASYONLU SKOR GRAFİĞİ FONKSİYONU
+    # =====================================================
+    def generate_animated_score_chart(df, skor_kolonu='MS', max_mac=60, title='Animasyonlu Skor Dağılımı'):
+        """
+        Maç maç birikimli animasyonlu bar chart üretir.
+        df: final_tablo benzeri DataFrame
+        skor_kolonu: 'MS' veya 'İY'
+        max_mac: Performans için animasyona dahil edilecek maksimum maç sayısı
+        """
+        if skor_kolonu not in df.columns or len(df) == 0:
+            return None
+
+        # Performans için sınırla
+        anim_kaynak = df.head(min(len(df), max_mac)).reset_index(drop=True)
+
+        # Her frame için kümülatif dağılım
+        frames_list = []
+        for i in range(1, len(anim_kaynak) + 1):
+            kum = anim_kaynak.head(i)[skor_kolonu].value_counts().reset_index()
+            kum.columns = ['Skor', 'Adet']
+            kum['Mac_Sayisi'] = i
+            frames_list.append(kum)
+
+        if not frames_list:
+            return None
+
+        anim_df = pd.concat(frames_list, ignore_index=True)
+
+        fig = px.bar(
+            anim_df,
+            x='Skor',
+            y='Adet',
+            color='Skor',
+            animation_frame='Mac_Sayisi',
+            range_y=[0, anim_df['Adet'].max() * 1.15 + 1],
+            title=title,
+            labels={'Skor': 'Skor', 'Adet': 'Görülme Sayısı'}
+        )
+
+        fig.update_layout(
+            transition={'duration': 200},
+            showlegend=False,
+            height=450,
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(26,32,44,0.3)',
+            font=dict(color='white'),
+            title_font=dict(color='white', size=18),
+            xaxis=dict(gridcolor='rgba(255,255,255,0.1)'),
+            yaxis=dict(gridcolor='rgba(255,255,255,0.1)'),
+        )
+
+        # Animasyon hızı (milisaniye)
+        if fig.layout.updatemenus:
+            fig.layout.updatemenus[0].buttons[0].args[1]['frame']['duration'] = 150
+            fig.layout.updatemenus[0].buttons[0].args[1]['transition']['duration'] = 150
+
+        return fig
 
 
     # =====================================================
@@ -725,6 +786,35 @@ if True:
 
             html_ters_cards += '</div>'
             st.markdown(html_ters_cards, unsafe_allow_html=True)
+
+            # ==========================================
+            # ANİMASYONLU SKOR GRAFİKLERİ
+            # ==========================================
+            st.markdown("---")
+            st.markdown("### 🎬 Animasyonlu Skor Dağılımları")
+            st.caption("▶️ Oynat butonuna basarak skor dağılımının maç maç nasıl oluştuğunu izleyebilirsin.")
+
+            tab_ms, tab_iy = st.tabs(["🏆 MS Skor Animasyonu", "⚽ İY Skor Animasyonu"])
+
+            with tab_ms:
+                fig_ms_anim = generate_animated_score_chart(
+                    temp_gol, skor_kolonu='MS', max_mac=60,
+                    title='⚽ Maç Sonu (MS) Skor Dağılımı — Animasyon'
+                )
+                if fig_ms_anim is not None:
+                    st.plotly_chart(fig_ms_anim, use_container_width=True)
+                else:
+                    st.warning("MS skor verisi bulunamadı.")
+
+            with tab_iy:
+                fig_iy_anim = generate_animated_score_chart(
+                    temp_gol, skor_kolonu='İY', max_mac=60,
+                    title='⚽ İlk Yarı (İY) Skor Dağılımı — Animasyon'
+                )
+                if fig_iy_anim is not None:
+                    st.plotly_chart(fig_iy_anim, use_container_width=True)
+                else:
+                    st.warning("İY skor verisi bulunamadı.")
 
             # ==========================================
             # YAPAY ZEKA YORUMU (UI)
