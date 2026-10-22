@@ -8,37 +8,9 @@ from fpdf import FPDF
 st.set_page_config(page_title="Gelişmiş Oran Analiz Sistemi (Çoklu Bahisçi)", layout="wide")
 
 # =====================================================
-# GÜVENLİK VE GİRİŞ ŞİFRESİ SİSTEMİ
+# ŞİFRE KALDIRILDI - DOĞRUDAN GİRİŞ
 # =====================================================
-def check_password():
-    if "authorized" not in st.session_state:
-        st.session_state.authorized = False
-    if st.session_state.authorized:
-        return True
-    st.markdown("""
-    <style>
-    .login-box {
-        background-color: #1a202c; padding: 30px; border-radius: 12px;
-        border: 1px solid #2d3748; max-width: 400px; margin: 100px auto;
-        text-align: center; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
-    }
-    </style>
-    """, unsafe_allow_html=True)
-    st.markdown('<div class="login-box">', unsafe_allow_html=True)
-    st.subheader("🔒 Sefin Kuponu Portal Girişi")
-    st.write("Devam etmek için lütfen giriş şifresini giriniz.")
-    password_input = st.text_input("Şifre", type="password", key="portal_pass_input")
-    if st.button("Giriş Yap", use_container_width=True):
-        if password_input == "225960":
-            st.session_state.authorized = True
-            st.rerun()
-        else:
-            st.error("❌ Hatalı şifre girdiniz!")
-    st.markdown('</div>', unsafe_allow_html=True)
-    return False
-
-
-if check_password():
+if True:
 
     st.title("📊 ORAN KUTBU (Çoklu Bahisçi - Açılış + Kapanış)")
     st.markdown("---")
