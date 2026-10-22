@@ -3,11 +3,8 @@ import pandas as pd
 import numpy as np
 import os
 import base64
-import json
 from fpdf import FPDF
-from google import genai
 import plotly.express as px
-import streamlit.components.v1 as components
 
 st.set_page_config(page_title="Gelişmiş Oran Analiz Sistemi (Çoklu Bahisçi)", layout="wide")
 
@@ -15,18 +12,6 @@ st.set_page_config(page_title="Gelişmiş Oran Analiz Sistemi (Çoklu Bahisçi)"
 # ŞİFRE KALDIRILDI - DOĞRUDAN GİRİŞ
 # =====================================================
 if True:
-
-    # =====================================================
-    # GEMINI İSTEMCİSİ
-    # =====================================================
-    try:
-        GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
-        gemini_client = genai.Client(api_key=GEMINI_API_KEY)
-        gemini_aktif = True
-    except Exception as e:
-        gemini_aktif = False
-        gemini_client = None
-        st.sidebar.warning(f"⚠️ Gemini API anahtarı bulunamadı. Yapay zeka yorumu devre dışı. Hata: {e}")
 
     st.title("📊 ORAN KUTBU (Çoklu Bahisçi - Açılış + Kapanış)")
     st.markdown("---")
@@ -139,157 +124,6 @@ if True:
 
         return fig
 
-    # =====================================================
-    # ÇARPIŞMA SİMÜLASYONU (HTML5 CANVAS)
-    # =====================================================
-    def render_bouncing_balls_animation(df, skor_kolonu='MS'):
-        if skor_kolonu not in df.columns or len(df) == 0:
-            return
-            
-        scores = df[skor_kolonu].tolist()
-        scores_json = json.dumps(scores)
-        
-        html_code = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-        <style>
-          body {{ margin: 0; display: flex; justify-content: center; align-items: center; background-color: transparent; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }}
-          #container {{ position: relative; width: 400px; height: 400px; margin: 20px auto; }}
-          canvas {{ border-radius: 50%; border: 4px solid #3b82f6; box-shadow: 0 0 30px rgba(59, 130, 246, 0.3); background: #0f172a; }}
-          #scoreboard {{
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            color: #fff; font-size: 64px; font-weight: 800; pointer-events: none;
-            text-shadow: 0 0 20px rgba(0,0,0,1), 0 0 10px rgba(0,0,0,0.8); z-index: 10;
-            display: flex; gap: 20px; transition: color 0.15s ease;
-          }}
-          .score-text {{ background: rgba(30, 41, 59, 0.8); padding: 10px 20px; border-radius: 12px; border: 1px solid #334155; }}
-          .subtitle {{ position: absolute; bottom: -30px; width: 100%; text-align: center; color: #94a3b8; font-size: 14px; }}
-        </style>
-        </head>
-        <body>
-        <div id="container">
-          <div id="scoreboard"><span class="score-text" id="score">0 - 0</span></div>
-          <canvas id="canvas" width="400" height="400"></canvas>
-          <div class="subtitle">⚽ Toplar çarpıştıkça eşleşen maçların gerçek skorları görünür.</div>
-        </div>
-
-        <script>
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
-        const scoreEl = document.getElementById('score');
-
-        const scores = {scores_json};
-        let scoreIndex = 0;
-
-        const radius = 18;
-        const center = {{ x: 200, y: 200 }};
-        const bounds = 200;
-
-        const ball1 = {{ x: 150, y: 200, vx: 4, vy: 2.5, color: '#ef4444' }}; // Ev Sahibi (Kırmızı)
-        const ball2 = {{ x: 250, y: 200, vx: -3.5, vy: -4, color: '#10b981' }}; // Deplasman (Yeşil)
-
-        function updateScore() {{
-            if (scores.length === 0) return;
-            scoreEl.innerText = scores[scoreIndex];
-            scoreIndex = (scoreIndex + 1) % scores.length;
-            
-            // Çarpışma anında parlama efekti
-            scoreEl.style.color = '#fbbf24';
-            setTimeout(() => scoreEl.style.color = '#fff', 150);
-        }}
-
-        function drawBall(ball) {{
-            ctx.beginPath();
-            ctx.arc(ball.x, ball.y, radius, 0, Math.PI * 2);
-            ctx.fillStyle = ball.color;
-            ctx.fill();
-            ctx.shadowColor = ball.color;
-            ctx.shadowBlur = 15;
-            ctx.fill();
-            ctx.shadowBlur = 0;
-            ctx.closePath();
-            
-            // İç parlama (3D efekti)
-            ctx.beginPath();
-            ctx.arc(ball.x - 4, ball.y - 4, radius/3, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(255,255,255,0.5)';
-            ctx.fill();
-            ctx.closePath();
-        }}
-
-        function checkCollision(b1, b2) {{
-            const dx = b1.x - b2.x;
-            const dy = b1.y - b2.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            
-            if (dist < radius * 2) {{
-                updateScore();
-
-                const angle = Math.atan2(dy, dx);
-                const sin = Math.sin(angle);
-                const cos = Math.cos(angle);
-
-                const vx1 = b1.vx * cos + b1.vy * sin;
-                const vy1 = b1.vy * cos - b1.vx * sin;
-                const vx2 = b2.vx * cos + b2.vy * sin;
-                const vy2 = b2.vy * cos - b2.vx * sin;
-
-                b1.vx = vx2 * cos - vy1 * sin;
-                b1.vy = vy1 * cos + vx2 * sin;
-                b2.vx = vx1 * cos - vy2 * sin;
-                b2.vy = vy2 * cos + vx1 * sin;
-
-                const overlap = radius * 2 - dist;
-                b1.x += (dx / dist) * overlap / 2;
-                b1.y += (dy / dist) * overlap / 2;
-                b2.x -= (dx / dist) * overlap / 2;
-                b2.y -= (dy / dist) * overlap / 2;
-            }}
-        }}
-
-        function animate() {{
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            ball1.x += ball1.vx;
-            ball1.y += ball1.vy;
-            ball2.x += ball2.vx;
-            ball2.y += ball2.vy;
-
-            [ball1, ball2].forEach(ball => {{
-                const dx = ball.x - center.x;
-                const dy = ball.y - center.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                
-                if (dist > bounds - radius) {{
-                    const nx = dx / dist;
-                    const ny = dy / dist;
-                    const dot = ball.vx * nx + ball.vy * ny;
-                    ball.vx -= 2 * dot * nx;
-                    ball.vy -= 2 * dot * ny;
-
-                    ball.x = center.x + nx * (bounds - radius);
-                    ball.y = center.y + ny * (bounds - radius);
-                }}
-            }});
-
-            checkCollision(ball1, ball2);
-
-            drawBall(ball1);
-            drawBall(ball2);
-
-            requestAnimationFrame(animate);
-        }}
-
-        updateScore();
-        animate();
-        </script>
-        </body>
-        </html>
-        """
-        
-        components.html(html_code, height=480, scrolling=False)
-
 
     # =====================================================
     # BAHİSÇİ SÜTUN EŞLEŞTİRMELERİ (AÇILIŞ + KAPANIŞ)
@@ -387,54 +221,6 @@ if True:
                 return 'X'
         except:
             return '?'
-
-
-    # =====================================================
-    # GEMINI YORUM FONKSİYONU (Otomatik Model Fallback)
-    # =====================================================
-    def gemini_ile_mac_yorumu_uret(ev_takim, dep_takim, ms_dagilim, iy_dagilim, iyms_dagilim):
-        if not gemini_aktif:
-            return "Yapay zeka yorumu için Gemini API anahtarı tanımlı değil. Streamlit Secrets'a 'GEMINI_API_KEY' ekleyin."
-
-        ms_ozet = ", ".join([f"{row['MS Skoru']} ({row['Adet']} kez)" for _, row in ms_dagilim.head(5).iterrows()])
-        iy_ozet = ", ".join([f"{row['İY Skoru']} ({row['Adet']} kez)" for _, row in iy_dagilim.head(5).iterrows()])
-        iyms_ozet = ", ".join([f"{row['İY/MS']} ({row['Adet']} kez)" for _, row in iyms_dagilim.head(5).iterrows()])
-
-        prompt = f"""
-        Sen deneyimli bir futbol analistisin. Aşağıdaki geçmiş maç verilerine dayanarak,
-        {ev_takim} - {dep_takim} maçı için Türkçe, akıcı ve profesyonel bir bahis yorumu yaz.
-        Yorum, 3-4 cümleyi geçmesin ve şu verileri korusun:
-
-        - En sık görülen Maç Sonu (MS) skorları: {ms_ozet}
-        - En sık görülen İlk Yarı (İY) skorları: {iy_ozet}
-        - En sık görülen İY/MS kombinasyonları: {iyms_ozet}
-
-        Yorumda, bu istatistiklerin maçın olası gidişatı hakkında ne ima ettiğini belirt.
-        """
-
-        denenecek_modeller = [
-            'gemini-3.8-flash',
-            'gemini-2.5-flash',
-            'gemini-1.5-flash',
-            'gemini-flash-latest',
-        ]
-
-        son_hata = None
-        for model_adi in denenecek_modeller:
-            try:
-                response = gemini_client.models.generate_content(
-                    model=model_adi,
-                    contents=prompt
-                )
-                return response.text
-            except Exception as e:
-                son_hata = e
-                continue
-
-        return (
-            f"Yapay zeka yorumu oluşturulamadı. Denenen modeller: "
-            f"{', '.join(denenecek_modeller)}. Son hata: {son_hata}"
-        )
 
 
     @st.cache_data
@@ -787,7 +573,6 @@ if True:
             st.session_state.kullanilan_mod = mod
             st.session_state.kullanilan_oran_tipi = oran_tipi
             st.session_state.kullanilan_bahisciler = aranacak_bahisciler
-            st.session_state.pop('gemini_yorum', None)
 
     if st.session_state.analiz_yapildi:
         final_tablo = st.session_state.final_tablo
@@ -943,13 +728,13 @@ if True:
             st.markdown(html_ters_cards, unsafe_allow_html=True)
 
             # ==========================================
-            # ANİMASYONLU SKOR GRAFİKLERİ VE SİMÜLASYON
+            # ANİMASYONLU SKOR GRAFİKLERİ
             # ==========================================
             st.markdown("---")
             st.markdown("### 🎬 Animasyonlu Skor Dağılımları")
             st.caption("▶️ Oynat butonuna basarak veya kaydırıcıyı oynatarak skor dağılımını görebilirsin.")
 
-            tab_ms, tab_iy, tab_carpisma = st.tabs(["🏆 MS Skor Animasyonu", "⚽ İY Skor Animasyonu", "🎱 Çarpışma Simülasyonu"])
+            tab_ms, tab_iy = st.tabs(["🏆 MS Skor Animasyonu", "⚽ İY Skor Animasyonu"])
 
             with tab_ms:
                 fig_ms_anim = generate_animated_score_chart(
@@ -970,36 +755,6 @@ if True:
                     st.plotly_chart(fig_iy_anim, use_container_width=True)
                 else:
                     st.warning("İY skor verisi bulunamadı.")
-
-            with tab_carpisma:
-                render_bouncing_balls_animation(temp_gol, skor_kolonu='MS')
-
-            # ==========================================
-            # YAPAY ZEKA YORUMU (UI)
-            # ==========================================
-            st.markdown("---")
-            st.subheader("🤖 Yapay Zeka Maç Yorumu (Gemini)")
-
-            if not gemini_aktif:
-                st.warning("⚠️ Gemini API anahtarı tanımlı değil. Streamlit Secrets'a `GEMINI_API_KEY` ekleyin.")
-            else:
-                if 'HomeTeam' in final_tablo.columns and 'AwayTeam' in final_tablo.columns and len(final_tablo) > 0:
-                    ev_takim = str(final_tablo['HomeTeam'].iloc[0])
-                    dep_takim = str(final_tablo['AwayTeam'].iloc[0])
-                else:
-                    ev_takim = "Ev Sahibi"
-                    dep_takim = "Deplasman"
-
-                if st.button("✨ Yorumu Oluştur", use_container_width=True):
-                    with st.spinner("Yapay zeka maçı analiz ediyor..."):
-                        yorum = gemini_ile_mac_yorumu_uret(
-                            ev_takim, dep_takim,
-                            ms_dagilim, iy_dagilim, iyms_dagilim
-                        )
-                        st.session_state.gemini_yorum = yorum
-
-                if 'gemini_yorum' in st.session_state:
-                    st.info(st.session_state.gemini_yorum)
 
             # ==========================================
             # PDF RAPORU
@@ -1176,23 +931,6 @@ if True:
 
             pdf.set_y(table_start_y + 90)
             pdf.ln(5)
-
-            # YAPAY ZEKA YORUMU (PDF)
-            if 'gemini_yorum' in st.session_state and st.session_state.gemini_yorum:
-                pdf.set_text_color(*color_text_dark)
-                pdf.set_font("Helvetica", 'B', 12)
-                pdf.cell(180, 8, txt=tr_to_ascii("4. YAPAY ZEKA MAC YORUMU (GEMINI)"), ln=True)
-                pdf.set_draw_color(139, 92, 246)
-                pdf.set_line_width(0.8)
-                pdf.line(15, pdf.get_y(), 195, pdf.get_y())
-                pdf.ln(4)
-                pdf.set_fill_color(*color_sec_bg)
-                pdf.set_font("Helvetica", '', 10)
-                pdf.set_text_color(*color_text_dark)
-                pdf.set_x(15)
-                yorum_pdf_metni = tr_to_ascii(st.session_state.gemini_yorum)
-                pdf.multi_cell(180, 6, txt=yorum_pdf_metni, fill=True)
-                pdf.ln(6)
 
             try:
                 pdf_output = pdf.output(dest='S').encode('latin-1')
