@@ -297,13 +297,13 @@ if True:
 
     st.caption(f"Seçili bahisçi(ler): **{', '.join(aranacak_bahisciler)}** | Mod: **{oran_tipi}**")
 
-    # TOLERANS SLIDER
+        # TOLERANS SLIDER
     st.markdown("### ⚙️ Eşleşme Toleransı")
-  tolerans = st.slider(
-    "Oran Toleransı (±)",
-    min_value=0.0, max_value=0.30, value=0.05, step=0.01,
-    help="0 = Birebir tam eşleşme, 0.05 = ±0.05 toleranslı eşleşme, 0.30 = ±0.30 toleranslı eşleşme"
-)
+    tolerans = st.slider(
+        "Oran Toleransı (±)",
+        min_value=0.0, max_value=0.30, value=0.05, step=0.01,
+        help="0 = Birebir tam eşleşme, 0.05 = ±0.05 toleranslı eşleşme, 0.30 = ±0.30 toleranslı eşleşme"
+    )
 
     if tolerans == 0:
         st.caption("🔒 Şu an **birebir tam eşleşme** modundasınız.")
