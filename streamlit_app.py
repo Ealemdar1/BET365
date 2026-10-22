@@ -78,19 +78,28 @@ if True:
     # ANİMASYONLU SKOR GRAFİĞİ FONKSİYONU
     # =====================================================
     def generate_animated_score_chart(df, skor_kolonu='MS', max_mac=60, title='Animasyonlu Skor Dağılımı'):
-        """
-        Maç maç birikimli animasyonlu bar chart üretir.
-        df: final_tablo benzeri DataFrame
-        skor_kolonu: 'MS' veya 'İY'
-        max_mac: Performans için animasyona dahil edilecek maksimum maç sayısı
-        """
         if skor_kolonu not in df.columns or len(df) == 0:
             return None
 
-        # Performans için sınırla
         anim_kaynak = df.head(min(len(df), max_mac)).reset_index(drop=True)
+        
+        # Eğer sadece 1 maç varsa animasyon yerine statik grafik göster
+        if len(anim_kaynak) == 1:
+            kum = anim_kaynak[skor_kolonu].value_counts().reset_index()
+            kum.columns = ['Skor', 'Adet']
+            fig = px.bar(
+                kum, x='Skor', y='Adet', 
+                title=f"{title} (Tek Maç Verisi)", 
+                text='Adet',
+                template='plotly_dark'
+            )
+            fig.update_layout(
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                height=450,
+            )
+            return fig
 
-        # Her frame için kümülatif dağılım
         frames_list = []
         for i in range(1, len(anim_kaynak) + 1):
             kum = anim_kaynak.head(i)[skor_kolonu].value_counts().reset_index()
@@ -111,19 +120,16 @@ if True:
             animation_frame='Mac_Sayisi',
             range_y=[0, anim_df['Adet'].max() * 1.15 + 1],
             title=title,
-            labels={'Skor': 'Skor', 'Adet': 'Görülme Sayısı'}
+            labels={'Skor': 'Skor', 'Adet': 'Görülme Sayısı'},
+            template='plotly_dark' # Koyu tema eklendi
         )
 
         fig.update_layout(
             transition={'duration': 200},
             showlegend=False,
             height=450,
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(26,32,44,0.3)',
-            font=dict(color='white'),
-            title_font=dict(color='white', size=18),
-            xaxis=dict(gridcolor='rgba(255,255,255,0.1)'),
-            yaxis=dict(gridcolor='rgba(255,255,255,0.1)'),
+            paper_bgcolor='rgba(0,0,0,0)', # Arka plan şeffaf
+            plot_bgcolor='rgba(0,0,0,0)',  # Arka plan şeffaf
         )
 
         # Animasyon hızı (milisaniye)
