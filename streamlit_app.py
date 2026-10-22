@@ -47,13 +47,13 @@ if True:
         return html
 
 
-    def generate_summary_dashboard(total_matches, tolerans, mod_metni, oran_metni):
+    def generate_summary_dashboard(total_matches, tolerans, mac_limiti, mod_metni, oran_metni):
         html = (
             f'<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 25px;">'
             f'<div style="background-color: #1a202c; border: 1px solid #3b82f6; border-radius: 12px; padding: 20px; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.15);">'
-            f'<div style="color: #93c5fd; font-weight: 600; font-size: 15px; margin-bottom: 8px;">📋 Eşleşen Maç Sayısı</div>'
+            f'<div style="color: #93c5fd; font-weight: 600; font-size: 15px; margin-bottom: 8px;">📋 Analiz Edilen Maç Sayısı</div>'
             f'<div style="font-size: 36px; color: #3b82f6; font-weight: bold;">{total_matches} Adet</div>'
-            f'<div style="color: #64748b; font-size: 12px; margin-top: 5px;">Tolerans: ±{tolerans}</div>'
+            f'<div style="color: #64748b; font-size: 12px; margin-top: 5px;">Tolerans: ±{tolerans} | Sınır: {mac_limiti}</div>'
             f'<div style="color: #94a3b8; font-size: 11px; margin-top: 3px;">{oran_metni} • {mod_metni}</div>'
             f'</div>'
             f'</div>'
@@ -357,7 +357,7 @@ if True:
 
     st.caption(f"Seçili bahisçi(ler): **{', '.join(aranacak_bahisciler)}** | Mod: **{oran_tipi}**")
 
-    # TOLERANS SLIDER (0.30'a kadar)
+    # TOLERANS SLIDER
     st.markdown("### ⚙️ Eşleşme Toleransı")
     tolerans = st.slider(
         "Oran Toleransı (±)",
@@ -382,6 +382,15 @@ if True:
                 f"Dep [{ps_a_k - tolerans:.2f}–{ps_a_k + tolerans:.2f}]"
             )
         st.caption(f"📏 **±{tolerans}** tolerans aktif. " + " | ".join(info_parts))
+
+    # MAÇ SINIRI
+    st.markdown("### 🎯 Analiz Maç Sınırı")
+    mac_limiti = st.select_slider(
+        "Gösterilecek Maksimum Maç Sayısı",
+        options=[10, 20, 30, 50, 100, 200, 500, 1000],
+        value=100,
+        help="Eşleşen maç sayısı bu limitten fazla ise, sadece ilk X maç analiz edilir (grafikler ve tablo bu sayıya göre hesaplanır)."
+    )
 
     # Lig Filtresi
     st.sidebar.header("🌍 Filtreler")
@@ -554,6 +563,12 @@ if True:
 
             final_tablo = ozet[[c for c in gosterilecek_kolonlar if c in ozet.columns]].copy()
 
+            # ==========================================
+            # MAÇ SINIRI UYGULAMA
+            # ==========================================
+            if len(final_tablo) > mac_limiti:
+                final_tablo = final_tablo.head(mac_limiti).copy()
+
             final_tablo = final_tablo.rename(columns={
                 'AC_H': 'Aç_Ev', 'AC_D': 'Aç_Ber', 'AC_A': 'Aç_Dep',
                 'KC_H': 'Kap_Ev', 'KC_D': 'Kap_Ber', 'KC_A': 'Kap_Dep',
@@ -564,6 +579,7 @@ if True:
             st.session_state.final_tablo = final_tablo
             st.session_state.analiz_yapildi = True
             st.session_state.kullanilan_tolerans = tolerans
+            st.session_state.kullanilan_mac_limiti = mac_limiti
             st.session_state.kullanilan_psh = ps_h
             st.session_state.kullanilan_psd = ps_d
             st.session_state.kullanilan_psa = ps_a
@@ -577,15 +593,16 @@ if True:
     if st.session_state.analiz_yapildi:
         final_tablo = st.session_state.final_tablo
         tolerans_aktif = st.session_state.get('kullanilan_tolerans', tolerans)
+        mac_limiti_aktif = st.session_state.get('kullanilan_mac_limiti', mac_limiti)
         mod_aktif = st.session_state.get('kullanilan_mod', mod)
         oran_tipi_aktif = st.session_state.get('kullanilan_oran_tipi', oran_tipi)
         bahisciler_aktif = st.session_state.get('kullanilan_bahisciler', aranacak_bahisciler)
 
         mod_metni = mod_aktif if mod_aktif == "Herhangi Biri (Tüm Bahisçiler)" else f"Tek Bahisçi: {bahisciler_aktif[0]}"
 
-        st.markdown(generate_summary_dashboard(len(final_tablo), tolerans_aktif, mod_metni, oran_tipi_aktif), unsafe_allow_html=True)
+        st.markdown(generate_summary_dashboard(len(final_tablo), tolerans_aktif, mac_limiti_aktif, mod_metni, oran_tipi_aktif), unsafe_allow_html=True)
 
-        st.subheader(f"🎯 {len(final_tablo)} Maç Eşleşti")
+        st.subheader(f"🎯 {len(final_tablo)} Maç Gösteriliyor")
         st.dataframe(final_tablo, use_container_width=True)
 
         st.markdown("### 📊 Skor ve İstatistiki Dağılımlar")
@@ -802,7 +819,7 @@ if True:
             pdf.set_text_color(*color_text_muted)
             tolerans_metni = "Birebir" if tolerans_aktif == 0 else f"±{tolerans_aktif}"
 
-            oran_satirlari = [f"Oran Tipi: {oran_tipi_aktif} | Tolerans: {tolerans_metni}"]
+            oran_satirlari = [f"Oran Tipi: {oran_tipi_aktif} | Tolerans: {tolerans_metni} | Sinir: {mac_limiti_aktif}"]
             if oran_tipi_aktif in [MODE_ACILIS, MODE_VEYA, MODE_VE]:
                 oran_satirlari.append(
                     f"Acilis Giris: Ev: {st.session_state.get('kullanilan_psh')} | "
