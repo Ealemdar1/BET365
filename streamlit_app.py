@@ -3,9 +3,11 @@ import pandas as pd
 import numpy as np
 import os
 import base64
+import json
 from fpdf import FPDF
 from google import genai
 import plotly.express as px
+import streamlit.components.v1 as components
 
 st.set_page_config(page_title="Gelişmiş Oran Analiz Sistemi (Çoklu Bahisçi)", layout="wide")
 
@@ -83,7 +85,6 @@ if True:
 
         anim_kaynak = df.head(min(len(df), max_mac)).reset_index(drop=True)
         
-        # Eğer sadece 1 maç varsa animasyon yerine statik grafik göster
         if len(anim_kaynak) == 1:
             kum = anim_kaynak[skor_kolonu].value_counts().reset_index()
             kum.columns = ['Skor', 'Adet']
@@ -121,23 +122,173 @@ if True:
             range_y=[0, anim_df['Adet'].max() * 1.15 + 1],
             title=title,
             labels={'Skor': 'Skor', 'Adet': 'Görülme Sayısı'},
-            template='plotly_dark' # Koyu tema eklendi
+            template='plotly_dark'
         )
 
         fig.update_layout(
             transition={'duration': 200},
             showlegend=False,
             height=450,
-            paper_bgcolor='rgba(0,0,0,0)', # Arka plan şeffaf
-            plot_bgcolor='rgba(0,0,0,0)',  # Arka plan şeffaf
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
         )
 
-        # Animasyon hızı (milisaniye)
         if fig.layout.updatemenus:
             fig.layout.updatemenus[0].buttons[0].args[1]['frame']['duration'] = 150
             fig.layout.updatemenus[0].buttons[0].args[1]['transition']['duration'] = 150
 
         return fig
+
+    # =====================================================
+    # ÇARPIŞMA SİMÜLASYONU (HTML5 CANVAS)
+    # =====================================================
+    def render_bouncing_balls_animation(df, skor_kolonu='MS'):
+        if skor_kolonu not in df.columns or len(df) == 0:
+            return
+            
+        scores = df[skor_kolonu].tolist()
+        scores_json = json.dumps(scores)
+        
+        html_code = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+        <style>
+          body {{ margin: 0; display: flex; justify-content: center; align-items: center; background-color: transparent; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }}
+          #container {{ position: relative; width: 400px; height: 400px; margin: 20px auto; }}
+          canvas {{ border-radius: 50%; border: 4px solid #3b82f6; box-shadow: 0 0 30px rgba(59, 130, 246, 0.3); background: #0f172a; }}
+          #scoreboard {{
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: #fff; font-size: 64px; font-weight: 800; pointer-events: none;
+            text-shadow: 0 0 20px rgba(0,0,0,1), 0 0 10px rgba(0,0,0,0.8); z-index: 10;
+            display: flex; gap: 20px; transition: color 0.15s ease;
+          }}
+          .score-text {{ background: rgba(30, 41, 59, 0.8); padding: 10px 20px; border-radius: 12px; border: 1px solid #334155; }}
+          .subtitle {{ position: absolute; bottom: -30px; width: 100%; text-align: center; color: #94a3b8; font-size: 14px; }}
+        </style>
+        </head>
+        <body>
+        <div id="container">
+          <div id="scoreboard"><span class="score-text" id="score">0 - 0</span></div>
+          <canvas id="canvas" width="400" height="400"></canvas>
+          <div class="subtitle">⚽ Toplar çarpıştıkça eşleşen maçların gerçek skorları görünür.</div>
+        </div>
+
+        <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score');
+
+        const scores = {scores_json};
+        let scoreIndex = 0;
+
+        const radius = 18;
+        const center = {{ x: 200, y: 200 }};
+        const bounds = 200;
+
+        const ball1 = {{ x: 150, y: 200, vx: 4, vy: 2.5, color: '#ef4444' }}; // Ev Sahibi (Kırmızı)
+        const ball2 = {{ x: 250, y: 200, vx: -3.5, vy: -4, color: '#10b981' }}; // Deplasman (Yeşil)
+
+        function updateScore() {{
+            if (scores.length === 0) return;
+            scoreEl.innerText = scores[scoreIndex];
+            scoreIndex = (scoreIndex + 1) % scores.length;
+            
+            // Çarpışma anında parlama efekti
+            scoreEl.style.color = '#fbbf24';
+            setTimeout(() => scoreEl.style.color = '#fff', 150);
+        }}
+
+        function drawBall(ball) {{
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, radius, 0, Math.PI * 2);
+            ctx.fillStyle = ball.color;
+            ctx.fill();
+            ctx.shadowColor = ball.color;
+            ctx.shadowBlur = 15;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.closePath();
+            
+            // İç parlama (3D efekti)
+            ctx.beginPath();
+            ctx.arc(ball.x - 4, ball.y - 4, radius/3, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255,255,255,0.5)';
+            ctx.fill();
+            ctx.closePath();
+        }}
+
+        function checkCollision(b1, b2) {{
+            const dx = b1.x - b2.x;
+            const dy = b1.y - b2.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            
+            if (dist < radius * 2) {{
+                updateScore();
+
+                const angle = Math.atan2(dy, dx);
+                const sin = Math.sin(angle);
+                const cos = Math.cos(angle);
+
+                const vx1 = b1.vx * cos + b1.vy * sin;
+                const vy1 = b1.vy * cos - b1.vx * sin;
+                const vx2 = b2.vx * cos + b2.vy * sin;
+                const vy2 = b2.vy * cos - b2.vx * sin;
+
+                b1.vx = vx2 * cos - vy1 * sin;
+                b1.vy = vy1 * cos + vx2 * sin;
+                b2.vx = vx1 * cos - vy2 * sin;
+                b2.vy = vy2 * cos + vx1 * sin;
+
+                const overlap = radius * 2 - dist;
+                b1.x += (dx / dist) * overlap / 2;
+                b1.y += (dy / dist) * overlap / 2;
+                b2.x -= (dx / dist) * overlap / 2;
+                b2.y -= (dy / dist) * overlap / 2;
+            }}
+        }}
+
+        function animate() {{
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ball1.x += ball1.vx;
+            ball1.y += ball1.vy;
+            ball2.x += ball2.vx;
+            ball2.y += ball2.vy;
+
+            [ball1, ball2].forEach(ball => {{
+                const dx = ball.x - center.x;
+                const dy = ball.y - center.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist > bounds - radius) {{
+                    const nx = dx / dist;
+                    const ny = dy / dist;
+                    const dot = ball.vx * nx + ball.vy * ny;
+                    ball.vx -= 2 * dot * nx;
+                    ball.vy -= 2 * dot * ny;
+
+                    ball.x = center.x + nx * (bounds - radius);
+                    ball.y = center.y + ny * (bounds - radius);
+                }}
+            }});
+
+            checkCollision(ball1, ball2);
+
+            drawBall(ball1);
+            drawBall(ball2);
+
+            requestAnimationFrame(animate);
+        }}
+
+        updateScore();
+        animate();
+        </script>
+        </body>
+        </html>
+        """
+        
+        components.html(html_code, height=480, scrolling=False)
 
 
     # =====================================================
@@ -261,12 +412,11 @@ if True:
         Yorumda, bu istatistiklerin maçın olası gidişatı hakkında ne ima ettiğini belirt.
         """
 
-        # Sırayla dene — biri çalışmazsa sonrakine geç
         denenecek_modeller = [
-            'gemini-3.8-flash',       # Hata mesajının önerdiği güncel model
-            'gemini-2.5-flash',       # Eski model (bazı hesaplarda hâlâ çalışıyor olabilir)
-            'gemini-1.5-flash',       # Yedek
-            'gemini-flash-latest',    # Google'ın "en son flash" takma adı
+            'gemini-3.8-flash',
+            'gemini-2.5-flash',
+            'gemini-1.5-flash',
+            'gemini-flash-latest',
         ]
 
         son_hata = None
@@ -637,7 +787,6 @@ if True:
             st.session_state.kullanilan_mod = mod
             st.session_state.kullanilan_oran_tipi = oran_tipi
             st.session_state.kullanilan_bahisciler = aranacak_bahisciler
-            # Yeni analiz → eski yorumu temizle
             st.session_state.pop('gemini_yorum', None)
 
     if st.session_state.analiz_yapildi:
@@ -794,13 +943,13 @@ if True:
             st.markdown(html_ters_cards, unsafe_allow_html=True)
 
             # ==========================================
-            # ANİMASYONLU SKOR GRAFİKLERİ
+            # ANİMASYONLU SKOR GRAFİKLERİ VE SİMÜLASYON
             # ==========================================
             st.markdown("---")
             st.markdown("### 🎬 Animasyonlu Skor Dağılımları")
-            st.caption("▶️ Oynat butonuna basarak skor dağılımının maç maç nasıl oluştuğunu izleyebilirsin.")
+            st.caption("▶️ Oynat butonuna basarak veya kaydırıcıyı oynatarak skor dağılımını görebilirsin.")
 
-            tab_ms, tab_iy = st.tabs(["🏆 MS Skor Animasyonu", "⚽ İY Skor Animasyonu"])
+            tab_ms, tab_iy, tab_carpisma = st.tabs(["🏆 MS Skor Animasyonu", "⚽ İY Skor Animasyonu", "🎱 Çarpışma Simülasyonu"])
 
             with tab_ms:
                 fig_ms_anim = generate_animated_score_chart(
@@ -821,6 +970,9 @@ if True:
                     st.plotly_chart(fig_iy_anim, use_container_width=True)
                 else:
                     st.warning("İY skor verisi bulunamadı.")
+
+            with tab_carpisma:
+                render_bouncing_balls_animation(temp_gol, skor_kolonu='MS')
 
             # ==========================================
             # YAPAY ZEKA YORUMU (UI)
