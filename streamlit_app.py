@@ -4,6 +4,7 @@ import numpy as np
 import os
 import base64
 from fpdf import FPDF
+from google import genai
 
 st.set_page_config(page_title="Gelişmiş Oran Analiz Sistemi (Çoklu Bahisçi)", layout="wide")
 
@@ -11,6 +12,18 @@ st.set_page_config(page_title="Gelişmiş Oran Analiz Sistemi (Çoklu Bahisçi)"
 # ŞİFRE KALDIRILDI - DOĞRUDAN GİRİŞ
 # =====================================================
 if True:
+
+    # =====================================================
+    # GEMINI İSTEMCİSİ
+    # =====================================================
+    try:
+        GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
+        gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+        gemini_aktif = True
+    except Exception as e:
+        gemini_aktif = False
+        gemini_client = None
+        st.sidebar.warning(f"⚠️ Gemini API anahtarı bulunamadı. Yapay zeka yorumu devre dışı. Hata: {e}")
 
     st.title("📊 ORAN KUTBU (Çoklu Bahisçi - Açılış + Kapanış)")
     st.markdown("---")
@@ -102,7 +115,6 @@ if True:
         },
     }
 
-    # Oran tipi mod sabitleri
     MODE_ACILIS = "Sadece Açılış"
     MODE_KAPANIS = "Sadece Kapanış"
     MODE_VEYA = "Her İkisi (VEYA - biri yeterli)"
@@ -159,6 +171,39 @@ if True:
             return '?'
 
 
+    # =====================================================
+    # GEMINI YORUM FONKSİYONU
+    # =====================================================
+    def gemini_ile_mac_yorumu_uret(ev_takim, dep_takim, ms_dagilim, iy_dagilim, iyms_dagilim):
+        if not gemini_aktif:
+            return "Yapay zeka yorumu için Gemini API anahtarı tanımlı değil. Streamlit Secrets'a 'GEMINI_API_KEY' ekleyin."
+
+        ms_ozet = ", ".join([f"{row['MS Skoru']} ({row['Adet']} kez)" for _, row in ms_dagilim.head(5).iterrows()])
+        iy_ozet = ", ".join([f"{row['İY Skoru']} ({row['Adet']} kez)" for _, row in iy_dagilim.head(5).iterrows()])
+        iyms_ozet = ", ".join([f"{row['İY/MS']} ({row['Adet']} kez)" for _, row in iyms_dagilim.head(5).iterrows()])
+
+        prompt = f"""
+        Sen deneyimli bir futbol analistisin. Aşağıdaki geçmiş maç verilerine dayanarak,
+        {ev_takim} - {dep_takim} maçı için Türkçe, akıcı ve profesyonel bir bahis yorumu yaz.
+        Yorum, 3-4 cümleyi geçmesin ve şu verileri korusun:
+
+        - En sık görülen Maç Sonu (MS) skorları: {ms_ozet}
+        - En sık görülen İlk Yarı (İY) skorları: {iy_ozet}
+        - En sık görülen İY/MS kombinasyonları: {iyms_ozet}
+
+        Yorumda, bu istatistiklerin maçın olası gidişatı hakkında ne ima ettiğini belirt.
+        """
+
+        try:
+            response = gemini_client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=prompt
+            )
+            return response.text
+        except Exception as e:
+            return f"Yapay zeka yorumu oluşturulurken bir hata oluştu: {e}"
+
+
     @st.cache_data
     def verileri_yukle_ve_birlestir(files):
         tum_veriler = []
@@ -203,9 +248,6 @@ if True:
         )
     )
 
-    # =====================================================
-    # ORAN TİPİ SEÇİMİ (AÇILIŞ / KAPANIŞ)
-    # =====================================================
     st.markdown("### 📊 Oran Tipi")
     oran_tipi = st.radio(
         "Hangi oran setini aramak istiyorsun?",
@@ -222,7 +264,6 @@ if True:
     acilis_kullan = oran_tipi in [MODE_ACILIS, MODE_VEYA, MODE_VE]
     kapanis_kullan = oran_tipi in [MODE_KAPANIS, MODE_VEYA, MODE_VE]
 
-    # Bu mod için uygun bahisçileri bul
     def bahisci_uygun_mu(isim, oran_tipi):
         sut = BAHISCILER[isim]
         ac_cols = list(sut["acilis"].values())
@@ -270,7 +311,7 @@ if True:
         secilen_bahisci = "Herhangi Biri"
 
     # =====================================================
-    # ORAN GİRİŞ ALANLARI (AÇILIŞ / KAPANIŞ)
+    # ORAN GİRİŞ ALANLARI
     # =====================================================
     ps_h = ps_d = ps_a = None
     ps_h_k = ps_d_k = ps_a_k = None
@@ -297,7 +338,7 @@ if True:
 
     st.caption(f"Seçili bahisçi(ler): **{', '.join(aranacak_bahisciler)}** | Mod: **{oran_tipi}**")
 
-        # TOLERANS SLIDER
+    # TOLERANS SLIDER (0.30'a kadar)
     st.markdown("### ⚙️ Eşleşme Toleransı")
     tolerans = st.slider(
         "Oran Toleransı (±)",
@@ -350,7 +391,6 @@ if True:
             mask_ac = None
             mask_kc = None
 
-            # Açılış maskesi
             if acilis_kullan:
                 ac_h, ac_d, ac_a = ac_cols["H"], ac_cols["D"], ac_cols["A"]
                 if all(c in tmp.columns for c in [ac_h, ac_d, ac_a]):
@@ -362,7 +402,6 @@ if True:
                         tmp[ac_a].between(ps_a - tolerans, ps_a + tolerans)
                     )
 
-            # Kapanış maskesi
             if kapanis_kullan:
                 kc_h, kc_d, kc_a = kc_cols["H"], kc_cols["D"], kc_cols["A"]
                 if all(c in tmp.columns for c in [kc_h, kc_d, kc_a]):
@@ -374,7 +413,6 @@ if True:
                         tmp[kc_a].between(ps_a_k - tolerans, ps_a_k + tolerans)
                     )
 
-            # Moda göre nihai maske
             if oran_tipi == MODE_ACILIS:
                 final_mask = mask_ac
             elif oran_tipi == MODE_KAPANIS:
@@ -399,7 +437,6 @@ if True:
             if matched.empty:
                 continue
 
-            # Eşleşme tipini belirle
             if oran_tipi == MODE_ACILIS:
                 tip_series = pd.Series(['Aç'] * len(matched), index=matched.index)
             elif oran_tipi == MODE_KAPANIS:
@@ -419,7 +456,6 @@ if True:
 
             matched['Eslesen_Bahisci'] = bahisci + ' (' + tip_series + ')'
 
-            # Açılış değerleri
             ac_h, ac_d, ac_a = ac_cols["H"], ac_cols["D"], ac_cols["A"]
             if all(c in matched.columns for c in [ac_h, ac_d, ac_a]):
                 matched['AC_H'] = matched[ac_h]
@@ -430,7 +466,6 @@ if True:
                     matched['Fark_AC_D'] = (matched[ac_d] - ps_d).round(2)
                     matched['Fark_AC_A'] = (matched[ac_a] - ps_a).round(2)
 
-            # Kapanış değerleri
             kc_h, kc_d, kc_a = kc_cols["H"], kc_cols["D"], kc_cols["A"]
             if all(c in matched.columns for c in [kc_h, kc_d, kc_a]):
                 matched['KC_H'] = matched[kc_h]
@@ -459,7 +494,6 @@ if True:
                 agg_dict = {
                     'Eslesen_Bahisci_Str': lambda x: ', '.join(sorted(set(x))),
                 }
-                # Oran ve fark kolonları
                 for c in ['AC_H', 'AC_D', 'AC_A', 'KC_H', 'KC_D', 'KC_A',
                           'Fark_AC_H', 'Fark_AC_D', 'Fark_AC_A',
                           'Fark_KC_H', 'Fark_KC_D', 'Fark_KC_A']:
@@ -520,6 +554,8 @@ if True:
             st.session_state.kullanilan_mod = mod
             st.session_state.kullanilan_oran_tipi = oran_tipi
             st.session_state.kullanilan_bahisciler = aranacak_bahisciler
+            # Yeni analiz → eski yorumu temizle
+            st.session_state.pop('gemini_yorum', None)
 
     if st.session_state.analiz_yapildi:
         final_tablo = st.session_state.final_tablo
@@ -563,7 +599,6 @@ if True:
         ideal_tercihler = []
         surpriz_tercihler = []
 
-        # MS ÖZEL BAHİS
         st.markdown("---")
         st.markdown("### 🔥 Maç Sonu (MS) Özel Bahis Dağılımı")
         st.caption(f"Son {len(final_tablo)} maç üzerinden hesaplanmıştır. (Alevler: 10-14 maç=1, 15-16 maç=2, 17+ maç=3)")
@@ -603,7 +638,6 @@ if True:
             html_cards += '</div>'
             st.markdown(html_cards, unsafe_allow_html=True)
 
-            # İY ÖZEL BAHİS
             st.markdown("---")
             st.markdown("### ⚽ İlk Yarı (İY) Özel Bahis Dağılımı")
             st.caption(f"İlk yarı skorlarına göre hesaplanmıştır.")
@@ -626,7 +660,6 @@ if True:
             html_iy_cards += '</div>'
             st.markdown(html_iy_cards, unsafe_allow_html=True)
 
-            # İY SONUÇ DAĞILIMI
             st.markdown("---")
             st.markdown("### 🎯 İlk Yarı (İY) Sonuç Dağılımı (1 - X - 2)")
 
@@ -644,7 +677,6 @@ if True:
             html_iy_sonuc_cards += '</div>'
             st.markdown(html_iy_sonuc_cards, unsafe_allow_html=True)
 
-            # İY/MS ÖZEL SONUÇ DAĞILIMI
             st.markdown("---")
             st.markdown("### 🔄 İY/MS Özel Sonuç Dağılımı")
 
@@ -677,6 +709,33 @@ if True:
 
             html_ters_cards += '</div>'
             st.markdown(html_ters_cards, unsafe_allow_html=True)
+
+            # ==========================================
+            # YAPAY ZEKA YORUMU (UI)
+            # ==========================================
+            st.markdown("---")
+            st.subheader("🤖 Yapay Zeka Maç Yorumu (Gemini)")
+
+            if not gemini_aktif:
+                st.warning("⚠️ Gemini API anahtarı tanımlı değil. Streamlit Secrets'a `GEMINI_API_KEY` ekleyin.")
+            else:
+                if 'HomeTeam' in final_tablo.columns and 'AwayTeam' in final_tablo.columns and len(final_tablo) > 0:
+                    ev_takim = str(final_tablo['HomeTeam'].iloc[0])
+                    dep_takim = str(final_tablo['AwayTeam'].iloc[0])
+                else:
+                    ev_takim = "Ev Sahibi"
+                    dep_takim = "Deplasman"
+
+                if st.button("✨ Yorumu Oluştur", use_container_width=True):
+                    with st.spinner("Yapay zeka maçı analiz ediyor..."):
+                        yorum = gemini_ile_mac_yorumu_uret(
+                            ev_takim, dep_takim,
+                            ms_dagilim, iy_dagilim, iyms_dagilim
+                        )
+                        st.session_state.gemini_yorum = yorum
+
+                if 'gemini_yorum' in st.session_state:
+                    st.info(st.session_state.gemini_yorum)
 
             # ==========================================
             # PDF RAPORU
@@ -750,7 +809,6 @@ if True:
             ), ln=True)
             pdf.ln(14)
 
-            # IDEAL TERCİHLER
             pdf.set_text_color(*color_text_dark)
             pdf.set_font("Helvetica", 'B', 12)
             pdf.cell(180, 8, txt=tr_to_ascii("1. IDEAL TERCIHLER (Banko Adaylari)"), ln=True)
@@ -786,7 +844,6 @@ if True:
                 pdf.cell(0, 8, txt=tr_to_ascii(" Bu analiz kriterlerine uyan aktif ideal tahmin bulunmuyor."), ln=True)
             pdf.ln(6)
 
-            # SÜRPRİZ TERCİHLER
             pdf.set_text_color(*color_text_dark)
             pdf.set_font("Helvetica", 'B', 12)
             pdf.cell(180, 8, txt=tr_to_ascii("2. SURPRIZ TERCIHLER (Degerli & Yuksek Oranlar)"), ln=True)
@@ -822,7 +879,6 @@ if True:
                 pdf.cell(0, 8, txt=tr_to_ascii(" Bu analiz kriterlerine uyan aktif surpriz tahmin bulunmuyor."), ln=True)
             pdf.ln(6)
 
-            # SKOR DAGILIMLARI
             pdf.set_text_color(*color_text_dark)
             pdf.set_font("Helvetica", 'B', 12)
             pdf.cell(180, 8, txt=tr_to_ascii("3. SKOR VE ISTATISTIKSEL DAGILIMLAR"), ln=True)
@@ -856,6 +912,23 @@ if True:
 
             pdf.set_y(table_start_y + 90)
             pdf.ln(5)
+
+            # YAPAY ZEKA YORUMU (PDF)
+            if 'gemini_yorum' in st.session_state and st.session_state.gemini_yorum:
+                pdf.set_text_color(*color_text_dark)
+                pdf.set_font("Helvetica", 'B', 12)
+                pdf.cell(180, 8, txt=tr_to_ascii("4. YAPAY ZEKA MAC YORUMU (GEMINI)"), ln=True)
+                pdf.set_draw_color(139, 92, 246)
+                pdf.set_line_width(0.8)
+                pdf.line(15, pdf.get_y(), 195, pdf.get_y())
+                pdf.ln(4)
+                pdf.set_fill_color(*color_sec_bg)
+                pdf.set_font("Helvetica", '', 10)
+                pdf.set_text_color(*color_text_dark)
+                pdf.set_x(15)
+                yorum_pdf_metni = tr_to_ascii(st.session_state.gemini_yorum)
+                pdf.multi_cell(180, 6, txt=yorum_pdf_metni, fill=True)
+                pdf.ln(6)
 
             try:
                 pdf_output = pdf.output(dest='S').encode('latin-1')
