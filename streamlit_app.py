@@ -1,8 +1,4 @@
-# Streamlit ve gerekli Excel okuma kütüphanelerini kurun
-!pip install -q streamlit openpyxl
-
-# Kod şablonu (Sadece saf Python kodları içerir, '!pip' barındırmaz)
-app_code = '''import streamlit as st
+import streamlit as st
 import pandas as pd
 import numpy as np
 import os
@@ -323,17 +319,3 @@ if st.button("⚡ Analizi Başlat", use_container_width=True):
         with col_stat3:
             st.markdown("📈 **İY/MS Kombinasyonu (Taraf)**")
             st.dataframe(iyms_dagilim, use_container_width=True)
-'''
-
-# Hem 'app.py' hem de bulutun aradığı 'streamlit_app.py' olarak kaydet
-with open('app.py', 'w', encoding='utf-8') as f:
-    f.write(app_code)
-
-with open('streamlit_app.py', 'w', encoding='utf-8') as f:
-    f.write(app_code)
-
-# Bulut için 'requirements.txt' dosyasını oluştur
-with open('requirements.txt', 'w', encoding='utf-8') as f:
-    f.write("streamlit\npandas\nnumpy\nopenpyxl\n")
-
-print("Dosyalar ('app.py', 'streamlit_app.py' ve 'requirements.txt') başarıyla oluşturuldu!")
