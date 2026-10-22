@@ -172,7 +172,7 @@ if True:
 
 
     # =====================================================
-    # GEMINI YORUM FONKSİYONU
+    # GEMINI YORUM FONKSİYONU (Otomatik Model Fallback)
     # =====================================================
     def gemini_ile_mac_yorumu_uret(ev_takim, dep_takim, ms_dagilim, iy_dagilim, iyms_dagilim):
         if not gemini_aktif:
@@ -194,14 +194,30 @@ if True:
         Yorumda, bu istatistiklerin maçın olası gidişatı hakkında ne ima ettiğini belirt.
         """
 
-        try:
-            response = gemini_client.models.generate_content(
-                model='gemini-2.5-flash',
-                contents=prompt
-            )
-            return response.text
-        except Exception as e:
-            return f"Yapay zeka yorumu oluşturulurken bir hata oluştu: {e}"
+        # Sırayla dene — biri çalışmazsa sonrakine geç
+        denenecek_modeller = [
+            'gemini-3.8-flash',       # Hata mesajının önerdiği güncel model
+            'gemini-2.5-flash',       # Eski model (bazı hesaplarda hâlâ çalışıyor olabilir)
+            'gemini-1.5-flash',       # Yedek
+            'gemini-flash-latest',    # Google'ın "en son flash" takma adı
+        ]
+
+        son_hata = None
+        for model_adi in denenecek_modeller:
+            try:
+                response = gemini_client.models.generate_content(
+                    model=model_adi,
+                    contents=prompt
+                )
+                return response.text
+            except Exception as e:
+                son_hata = e
+                continue
+
+        return (
+            f"Yapay zeka yorumu oluşturulamadı. Denenen modeller: "
+            f"{', '.join(denenecek_modeller)}. Son hata: {son_hata}"
+        )
 
 
     @st.cache_data
