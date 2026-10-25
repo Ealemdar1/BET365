@@ -8,6 +8,11 @@ st.set_page_config(page_title="Gelişmiş Oran Analiz Sistemi", layout="wide")
 st.title("📊 ORAN KUTBU (Sadeleştirilmiş Analiz Paneli)")
 st.markdown("---")
 
+# --- ÖNBELLEK TEMİZLEME BUTONU (SOL MENÜ) ---
+if st.sidebar.button("♻️ Önbelleği (Cache) Temizle", use_container_width=True):
+    st.cache_data.clear()
+    st.sidebar.success("Önbellek başarıyla temizlendi!")
+
 BAHISCILER = {
     "Pinnacle": {
         "acilis":  {"H": "PSH",    "D": "PSD",    "A": "PSA"},
@@ -240,16 +245,16 @@ if st.button("⚡ Analizi Başlat", use_container_width=True):
             ac_h, ac_d, ac_a = ac_cols["H"], ac_cols["D"], ac_cols["A"]
             if all(c in tmp.columns for c in [ac_h, ac_d, ac_a]):
                 for c in [ac_h, ac_d, ac_a]: tmp[c] = pd.to_numeric(tmp[c], errors='coerce')
-                mask_ac = (tmp[ac_h].between(ps_h - tolerans, ps_h + tolerans) &
-                           tmp[ac_d].between(ps_d - tolerans, ps_d + tolerans) &
+                mask_ac = (tmp[ac_h].between(ps_h - tolerans, ps_h + tolerans) & 
+                           tmp[ac_d].between(ps_d - tolerans, ps_d + tolerans) & 
                            tmp[ac_a].between(ps_a - tolerans, ps_a + tolerans))
 
         if kapanis_kullan:
             kc_h, kc_d, kc_a = kc_cols["H"], kc_cols["D"], kc_cols["A"]
             if all(c in tmp.columns for c in [kc_h, kc_d, kc_a]):
                 for c in [kc_h, kc_d, kc_a]: tmp[c] = pd.to_numeric(tmp[c], errors='coerce')
-                mask_kc = (tmp[kc_h].between(ps_h_k - tolerans, ps_h_k + tolerans) &
-                           tmp[kc_d].between(ps_d_k - tolerans, ps_d_k + tolerans) &
+                mask_kc = (tmp[kc_h].between(ps_h_k - tolerans, ps_h_k + tolerans) & 
+                           tmp[kc_d].between(ps_d_k - tolerans, ps_d_k + tolerans) & 
                            tmp[kc_a].between(ps_a_k - tolerans, ps_a_k + tolerans))
 
         if oran_tipi == MODE_ACILIS: final_mask = mask_ac
