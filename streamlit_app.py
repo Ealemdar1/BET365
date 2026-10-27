@@ -144,6 +144,9 @@ def taraf_belirle(skor_str):
 @st.cache_data
 def verileri_yukle_ve_birlestir(files):
     tum_veriler = []
+    # Case-insensitive mapping hazırlığı
+    lig_aciklamalari_clean = {k.strip().upper(): v for k, v in lig_aciklamalari.items()}
+    
     for file in files:
         if os.path.exists(file):
             xls = pd.ExcelFile(file)
@@ -151,8 +154,10 @@ def verileri_yukle_ve_birlestir(files):
                 df_sheet = pd.read_excel(file, sheet_name=sheet_name)
                 if not df_sheet.empty:
                     df_sheet['Source_File'] = file
-                    temiz_kod = str(sheet_name).strip()
-                    df_sheet['Source_Sheet'] = lig_aciklamalari.get(temiz_kod, temiz_kod)
+                    temiz_kod = str(sheet_name).strip().upper()
+                    # Eğer tanımlı lig listesinde varsa açıklamasını al, yoksa sayfa adını direkt kullan
+                    aciklama = lig_aciklamalari_clean.get(temiz_kod, str(sheet_name).strip())
+                    df_sheet['Source_Sheet'] = aciklama
                     tum_veriler.append(df_sheet)
     if tum_veriler:
         return pd.concat(tum_veriler, ignore_index=True, sort=False)
@@ -245,16 +250,16 @@ if st.button("⚡ Analizi Başlat", use_container_width=True):
             ac_h, ac_d, ac_a = ac_cols["H"], ac_cols["D"], ac_cols["A"]
             if all(c in tmp.columns for c in [ac_h, ac_d, ac_a]):
                 for c in [ac_h, ac_d, ac_a]: tmp[c] = pd.to_numeric(tmp[c], errors='coerce')
-                mask_ac = (tmp[ac_h].between(ps_h - tolerans, ps_h + tolerans) & 
-                           tmp[ac_d].between(ps_d - tolerans, ps_d + tolerans) & 
+                mask_ac = (tmp[ac_h].between(ps_h - tolerans, ps_h + tolerans) &
+                           tmp[ac_d].between(ps_d - tolerans, ps_d + tolerans) &
                            tmp[ac_a].between(ps_a - tolerans, ps_a + tolerans))
 
         if kapanis_kullan:
             kc_h, kc_d, kc_a = kc_cols["H"], kc_cols["D"], kc_cols["A"]
             if all(c in tmp.columns for c in [kc_h, kc_d, kc_a]):
                 for c in [kc_h, kc_d, kc_a]: tmp[c] = pd.to_numeric(tmp[c], errors='coerce')
-                mask_kc = (tmp[kc_h].between(ps_h_k - tolerans, ps_h_k + tolerans) & 
-                           tmp[kc_d].between(ps_d_k - tolerans, ps_d_k + tolerans) & 
+                mask_kc = (tmp[kc_h].between(ps_h_k - tolerans, ps_h_k + tolerans) &
+                           tmp[kc_d].between(ps_d_k - tolerans, ps_d_k + tolerans) &
                            tmp[kc_a].between(ps_a_k - tolerans, ps_a_k + tolerans))
 
         if oran_tipi == MODE_ACILIS: final_mask = mask_ac
@@ -273,7 +278,7 @@ if st.button("⚡ Analizi Başlat", use_container_width=True):
 
     if not eslesen_satirlar:
         st.warning("Eşleşen hiçbir maç bulunamadı.")
-    else: 
+    else:
         birlesik = pd.concat(eslesen_satirlar, ignore_index=True)
         grup_kolonlari = [c for c in ['Date', 'HomeTeam', 'AwayTeam', 'Source_Sheet'] if c in birlesik.columns]
 
