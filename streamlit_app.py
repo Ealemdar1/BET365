@@ -94,7 +94,6 @@ MODE_VEYA = "Her İkisi (VEYA - biri yeterli)"
 MODE_VE = "Her İkisi (VE - ikisi de uyumlu)"
 
 uploaded_files = [
-    "new_leagues_data.xlsx",
     "all-euro-data-2010-2011.xlsx", "all-euro-data-2011-2012.xlsx",
     "all-euro-data-2012-2013.xlsx", "all-euro-data-2013-2014.xlsx",
     "all-euro-data-2014-2015.xlsx", "all-euro-data-2015-2016.xlsx",
@@ -144,9 +143,8 @@ def taraf_belirle(skor_str):
 @st.cache_data
 def verileri_yukle_ve_birlestir(files):
     tum_veriler = []
-    # Case-insensitive mapping hazırlığı
     lig_aciklamalari_clean = {k.strip().upper(): v for k, v in lig_aciklamalari.items()}
-    
+
     for file in files:
         if os.path.exists(file):
             xls = pd.ExcelFile(file)
@@ -155,9 +153,25 @@ def verileri_yukle_ve_birlestir(files):
                 if not df_sheet.empty:
                     df_sheet['Source_File'] = file
                     temiz_kod = str(sheet_name).strip().upper()
-                    # Eğer tanımlı lig listesinde varsa açıklamasını al, yoksa sayfa adını direkt kullan
                     aciklama = lig_aciklamalari_clean.get(temiz_kod, str(sheet_name).strip())
                     df_sheet['Source_Sheet'] = aciklama
+                    
+                    # --- Kolon Standardizasyonu ---
+                    if 'Home' in df_sheet.columns and 'HomeTeam' not in df_sheet.columns:
+                        df_sheet['HomeTeam'] = df_sheet['Home']
+                    if 'Away' in df_sheet.columns and 'AwayTeam' not in df_sheet.columns:
+                        df_sheet['AwayTeam'] = df_sheet['Away']
+                    
+                    if 'HG' in df_sheet.columns and 'FTHG' not in df_sheet.columns:
+                        df_sheet['FTHG'] = df_sheet['HG']
+                    if 'AG' in df_sheet.columns and 'FTAG' not in df_sheet.columns:
+                        df_sheet['FTAG'] = df_sheet['AG']
+                    
+                    if 'HTHG' not in df_sheet.columns:
+                        df_sheet['HTHG'] = np.nan
+                    if 'HTAG' not in df_sheet.columns:
+                        df_sheet['HTAG'] = np.nan
+                        
                     tum_veriler.append(df_sheet)
     if tum_veriler:
         return pd.concat(tum_veriler, ignore_index=True, sort=False)
